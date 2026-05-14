@@ -1,0 +1,226 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { runV3Source, type V3InjectionRegistry } from "../src/runtime/index";
+
+const fixture = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1"
+  }>
+
+  node2 := <node {
+    id: node2,
+    label: "Node 2"
+  }>
+
+  graph1 := @seed(graph) {
+    node: [node1, node2],
+    state: {
+      node1.hp: 40
+    },
+    root: node1
+  }
+`;
+
+function source(flow: string): string {
+  return `${fixture}\n${flow}`;
+}
+
+function runWithInjection(generatedTat: string) {
+  return runV3Source(source(`
+    view := graph1
+      <- @inject(runtimeHook, "runtime.py")
+      <> @what()
+      <> @how()
+  `), {
+    injections: {
+      runtimeHook: {
+        fileName: "runtime.py",
+        run: () => generatedTat,
+      },
+    },
+  });
+}
+
+function flowValue(result: ReturnType<typeof runV3Source>): any {
+  return result.bindings.view?.type === "flowResult" ? result.bindings.view.value : undefined;
+}
+
+function injectionEvent(result: ReturnType<typeof runV3Source>): any {
+  return result.events.find((event) => event.type === "injection");
+}
+
+describe("TAT v3 runtime injection", () => {
+  it("inject calls registered hook", () => {
+    const run = vi.fn(() => "-> @update(state) { node1.hp = 50 }");
+    runV3Source(source(`
+      view := graph1
+        <- @inject(runtimeHook, "runtime.py")
+    `), {
+      injections: { runtimeHook: { fileName: "runtime.py", run } },
+    });
+
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("injection hook receives graph context", () => {
+    const run = vi.fn(() => "");
+    runV3Source(source(`
+      view := graph1
+        <- @inject(runtimeHook, "runtime.py")
+    `), {
+      injections: { runtimeHook: { fileName: "runtime.py", run } },
+    });
+
+    expect((run.mock.calls[0] as any[])[0]).toMatchObject({
+      root: "node1",
+      state: { node1: { hp: 40 } },
+      nodes: { node1: { id: "node1" } },
+    });
+  });
+
+  it("generated mutation executes at injection point", () => {
+    const result = runWithInjection(`
+      -> @update(state) {
+        node1.hp = @derive(value) { target: value, formula: node1.hp + 10 }
+      }
+    `);
+
+    expect(result.status).toBe("success");
+    expect(result.graphs.graph1.state.node1.hp).toBe(50);
+  });
+
+  it("generated gate controls injected mutation", () => {
+    const result = runWithInjection(`
+      ?> @query(state) {
+        node: node1,
+        key: hp,
+        value: > 80
+      }
+
+      -> @update(state) {
+        node1.hp = 99
+      }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(40);
+    expect(result.events).toContainEqual(expect.objectContaining({ type: "gate", passed: false }));
+  });
+
+  it("generated graft executes", () => {
+    const result = runWithInjection(`
+      -> @graft(edge) {
+        edge2: { node1 : trusts : node2 }
+      }
+    `);
+
+    expect(result.graphs.graph1.edges.edge2).toMatchObject({
+      from: "node1",
+      relation: "trusts",
+      to: "node2",
+    });
+  });
+
+  it("generated projection and explanation steps execute", () => {
+    const result = runWithInjection(`
+      <> @what()
+      <> @how()
+    `);
+
+    expect(flowValue(result).projections.what).toMatchObject({ kind: "what" });
+    expect(flowValue(result).projections.how).toMatchObject({ kind: "how" });
+  });
+
+  it("injection event records hook and file", () => {
+    const result = runWithInjection("-> @update(state) { node1.hp = 50 }");
+
+    expect(injectionEvent(result)).toMatchObject({
+      hook: "runtimeHook",
+      file: "runtime.py",
+    });
+  });
+
+  it("injection event records generatedTat", () => {
+    const generatedTat = "-> @update(state) { node1.hp = 50 }";
+    const result = runWithInjection(generatedTat);
+
+    expect(injectionEvent(result).generatedTat).toBe(generatedTat);
+  });
+
+  it("injection event records parse and validation success", () => {
+    const result = runWithInjection("-> @update(state) { node1.hp = 50 }");
+
+    expect(injectionEvent(result).diagnostics).toMatchObject({
+      parse: "success",
+      validation: "success",
+      errors: [],
+    });
+  });
+
+  it("injection event records executed steps", () => {
+    const result = runWithInjection("-> @update(state) { node1.hp = 50 }");
+
+    expect(injectionEvent(result).executedSteps).toEqual([
+      expect.objectContaining({ type: "mutation", directive: "update" }),
+    ]);
+  });
+
+  it("how output includes injection generatedTat and diagnostics", () => {
+    const result = runWithInjection("-> @update(state) { node1.hp = 50 }");
+    const injectionStep = flowValue(result).projections.how.steps.find((step: any) => step.type === "injection");
+
+    expect(injectionStep).toMatchObject({
+      hook: "runtimeHook",
+      file: "runtime.py",
+      generatedTat: "-> @update(state) { node1.hp = 50 }",
+      diagnostics: { parse: "success", validation: "success", errors: [] },
+      executedSteps: [expect.objectContaining({ type: "mutation", paths: ["node1.hp"] })],
+    });
+  });
+
+  it("missing hook returns runtime diagnostic", () => {
+    const result = runV3Source(source(`
+      view := graph1
+        <- @inject(runtimeHook, "runtime.py")
+    `));
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Missing injection hook "runtimeHook".',
+    );
+  });
+
+  it("file mismatch returns runtime diagnostic", () => {
+    const injections: V3InjectionRegistry = {
+      runtimeHook: { fileName: "runtime.py", run: () => "" },
+    };
+    const result = runV3Source(source(`
+      view := graph1
+        <- @inject(runtimeHook, "other.py")
+    `), { injections });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Injection hook "runtimeHook" expected file "runtime.py" but received "other.py".',
+    );
+  });
+
+  it("invalid generated TAT records error and does not execute", () => {
+    const result = runWithInjection("-> @update(state) { node1.hp = }");
+
+    expect(result.status).toBe("error");
+    expect(result.graphs.graph1.state.node1.hp).toBe(40);
+    expect(injectionEvent(result).diagnostics.parse).toBe("error");
+    expect(injectionEvent(result).executedSteps).toEqual([]);
+  });
+
+  it("generated top-level binding is rejected and does not execute", () => {
+    const result = runWithInjection(`
+      node3 := <node { id: node3 }>
+    `);
+
+    expect(result.status).toBe("error");
+    expect(result.graphs.graph1.nodes.node3).toBeUndefined();
+    expect(injectionEvent(result).diagnostics.errors).toContain("Injected TAT must be a graph-flow fragment.");
+  });
+});

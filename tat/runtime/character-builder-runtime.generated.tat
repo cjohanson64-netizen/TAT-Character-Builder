@@ -1,0 +1,301 @@
+// -----------------------------------------------------------------------------
+// character-builder-runtime.generated.tat
+// AUTO-GENERATED FILE. Do not edit by hand.
+//
+// This is a graph-flow fragment for @inject.
+// It must not contain imports, exports, @seed, or top-level bindings.
+//
+// Python owns these runtime values.
+// TAT owns the semantic interpretation of these values.
+// -----------------------------------------------------------------------------
+
+-> @graft(node) {
+  sampleCharacter: <node {
+    id: sampleCharacter,
+    label: "Ari",
+    kind: runtimeCharacter,
+    characterId: "hero_001",
+    name: "Ari",
+    level: 1,
+    xp: 0,
+    source: python,
+    description: "Runtime character supplied by Python state.",
+  }>,
+
+  sampleCharacterDataFact: <node {
+    id: sampleCharacterDataFact,
+    label: "Character Data",
+    kind: runtimeFact,
+    source: python,
+    description: "Runtime character identity and progression values.",
+  }>,
+
+  sampleStatValuesFact: <node {
+    id: sampleStatValuesFact,
+    label: "Stat Values",
+    kind: runtimeFact,
+    source: python,
+    description: "Current stat values supplied by Python state.",
+  }>,
+
+  sampleUnlockedSkillsFact: <node {
+    id: sampleUnlockedSkillsFact,
+    label: "Learned Skills",
+    kind: runtimeFact,
+    source: python,
+    description: "Current learned skill ids supplied by Python state.",
+  }>,
+
+  sampleStrengthValue: <node {
+    id: sampleStrengthValue,
+    label: "Strength Value",
+    kind: runtimeStatValue,
+    stat: strength,
+    value: 8,
+    source: python,
+    description: "Current Strength value.",
+  }>,
+
+  sampleDefenseValue: <node {
+    id: sampleDefenseValue,
+    label: "Defense Value",
+    kind: runtimeStatValue,
+    stat: defense,
+    value: 6,
+    source: python,
+    description: "Current Defense value.",
+  }>,
+
+  sampleIntelligenceValue: <node {
+    id: sampleIntelligenceValue,
+    label: "Intelligence Value",
+    kind: runtimeStatValue,
+    stat: intelligence,
+    value: 4,
+    source: python,
+    description: "Current Intelligence value.",
+  }>,
+
+  sampleResistanceValue: <node {
+    id: sampleResistanceValue,
+    label: "Resistance Value",
+    kind: runtimeStatValue,
+    stat: resistance,
+    value: 5,
+    source: python,
+    description: "Current Resistance value.",
+  }>,
+
+  sampleSpeedValue: <node {
+    id: sampleSpeedValue,
+    label: "Speed Value",
+    kind: runtimeStatValue,
+    stat: speed,
+    value: 7,
+    source: python,
+    description: "Current Speed value.",
+  }>,
+
+  sampleDexterityValue: <node {
+    id: sampleDexterityValue,
+    label: "Dexterity Value",
+    kind: runtimeStatValue,
+    stat: dexterity,
+    value: 6,
+    source: python,
+    description: "Current Dexterity value.",
+  }>,
+
+  sampleUnlockedHeavyStrike: <node {
+    id: sampleUnlockedHeavyStrike,
+    label: "Learned Heavy Strike",
+    kind: runtimeUnlockedSkill,
+    skill: heavyStrike,
+    skillId: heavyStrike,
+    source: python,
+    description: "Heavy Strike has been learned.",
+  }>,
+
+  healthPoints: <node {
+    id: healthPoints,
+    label: "Health Points",
+    kind: runtimeResource,
+    current: 30,
+    max: 30,
+    source: python,
+    description: "Current Health Points resource values.",
+  }>,
+
+  skillPoints: <node {
+    id: skillPoints,
+    label: "Skill Points",
+    kind: runtimeResource,
+    current: 10,
+    max: 10,
+    source: python,
+    description: "Current Skill Points resource values.",
+  }>,
+
+  heroStatus: <node {
+    id: heroStatus,
+    label: "Hero Status",
+    kind: runtimeStatus,
+    source: python,
+    description: "Current buffs and ailments affecting the hero.",
+  }>
+}
+
+-> @graft(edge) {
+  runtimeFactsIncludesCharacterData: {
+    runtimeFactsRoot : includesRuntimeFact : sampleCharacterDataFact
+  },
+
+  runtimeFactsIncludesStatValues: {
+    runtimeFactsRoot : includesRuntimeFact : sampleStatValuesFact
+  },
+
+  runtimeFactsIncludesUnlockedSkills: {
+    runtimeFactsRoot : includesRuntimeFact : sampleUnlockedSkillsFact
+  },
+
+  sampleCharacterDataDescribesCharacter: {
+    sampleCharacterDataFact : describes : sampleCharacter
+  },
+
+  sampleCharacterHasStatValues: {
+    sampleCharacter : hasRuntimeFact : sampleStatValuesFact
+  },
+
+  sampleCharacterHasUnlockedSkills: {
+    sampleCharacter : hasRuntimeFact : sampleUnlockedSkillsFact
+  },
+
+  sampleStatValuesIncludesStrength: {
+    sampleStatValuesFact : includesStatValue : sampleStrengthValue
+  },
+
+  sampleStrengthValueAppliesToStrength: {
+    sampleStrengthValue : appliesToStat : strength
+  },
+
+  sampleStatValuesIncludesDefense: {
+    sampleStatValuesFact : includesStatValue : sampleDefenseValue
+  },
+
+  sampleDefenseValueAppliesToDefense: {
+    sampleDefenseValue : appliesToStat : defense
+  },
+
+  sampleStatValuesIncludesIntelligence: {
+    sampleStatValuesFact : includesStatValue : sampleIntelligenceValue
+  },
+
+  sampleIntelligenceValueAppliesToIntelligence: {
+    sampleIntelligenceValue : appliesToStat : intelligence
+  },
+
+  sampleStatValuesIncludesResistance: {
+    sampleStatValuesFact : includesStatValue : sampleResistanceValue
+  },
+
+  sampleResistanceValueAppliesToResistance: {
+    sampleResistanceValue : appliesToStat : resistance
+  },
+
+  sampleStatValuesIncludesSpeed: {
+    sampleStatValuesFact : includesStatValue : sampleSpeedValue
+  },
+
+  sampleSpeedValueAppliesToSpeed: {
+    sampleSpeedValue : appliesToStat : speed
+  },
+
+  sampleStatValuesIncludesDexterity: {
+    sampleStatValuesFact : includesStatValue : sampleDexterityValue
+  },
+
+  sampleDexterityValueAppliesToDexterity: {
+    sampleDexterityValue : appliesToStat : dexterity
+  },
+
+  sampleUnlockedSkillsIncludesHeavyStrike: {
+    sampleUnlockedSkillsFact : includesUnlockedSkill : sampleUnlockedHeavyStrike
+  },
+
+  sampleUnlockedHeavyStrikeAppliesToHeavyStrike: {
+    sampleUnlockedHeavyStrike : appliesToSkill : heavyStrike
+  },
+
+  sampleCharacterHasHealthPoints: {
+    sampleCharacter : hasRuntimeResource : healthPoints
+  },
+
+  sampleCharacterHasSkillPoints: {
+    sampleCharacter : hasRuntimeResource : skillPoints
+  },
+
+  sampleCharacterHasStatus: {
+    sampleCharacter : hasRuntimeStatus : heroStatus
+  }
+}
+
+-> @graft(state) {
+  hero.characterClass: warrior,
+
+  hero.level: 1,
+
+  hero.experiencePoints: 0,
+
+  healthPoints.current: 30,
+
+  healthPoints.max: 30,
+
+  skillPoints.current: 10,
+
+  skillPoints.max: 10,
+
+  strength.current: 8,
+
+  defense.current: 6,
+
+  intelligence.current: 4,
+
+  resistance.current: 5,
+
+  speed.current: 7,
+
+  dexterity.current: 6,
+
+  hero.buffs: [],
+
+  hero.ailments: [],
+
+  heavyStrike.learned: true,
+
+  powerSwing.learned: false,
+
+  shieldGuard.learned: false,
+
+  ironWall.learned: false,
+
+  arcaneBolt.learned: false,
+
+  spellSurge.learned: false,
+
+  wardingMind.learned: false,
+
+  spellGuard.learned: false,
+
+  quickStep.learned: false,
+
+  initiative.learned: false,
+
+  preciseShot.learned: false,
+
+  weaponMastery.learned: false
+}
+
+-> @graft(meta) {
+  runtimeFactsRoot.generatedBy: "python",
+  runtimeFactsRoot.boundary: "Python supplies values only. TAT owns interpretation.",
+}

@@ -1,0 +1,699 @@
+// -----------------------------------------------------------------------------
+// character-builder-runtime-smoke.tat
+// Character + Skill Builder
+//
+// Pass 11 goal:
+// Smoke-test Python-shaped runtime facts against the TAT app semantic surface.
+//
+// This file does not call Python yet.
+// This file does not persist state yet.
+// This file does not calculate final unlock status yet.
+//
+// It proves that TAT can represent one runtime character instance with:
+// - character identity facts
+// - live stat value facts
+// - unlocked skill facts
+// - runtime action facts
+// - links back to the app root, runtime data contract, stats, skills, and projections
+// -----------------------------------------------------------------------------
+
+import {
+  characterBuilderRootGraph,
+  runtimeDataContractGraph,
+
+  characterDataContract,
+  statValuesContract,
+  unlockedSkillsContract,
+  runtimeActionContract,
+  runtimeProjectionRequestContract,
+
+  characterGraph,
+  statsGraph,
+  skillsGraph,
+  unlockRulesGraph,
+  progressionNetwork,
+  projectionGraph,
+
+  strength,
+  defense,
+  intelligence,
+  resistance,
+  speed,
+  dexterity,
+
+  heavyStrike,
+  shieldGuard,
+  arcaneBolt,
+  quickStep,
+
+  trainStatAction,
+  unlockSkillAction,
+
+  characterSheetView,
+  statsView,
+  skillTreeView,
+  progressionTopologyViewNode,
+  debugSemanticView,
+} from "../character-builder.root.tat"
+
+// -----------------------------------------------------------------------------
+// Runtime smoke root
+// -----------------------------------------------------------------------------
+
+runtimeSmokeRoot := <node {
+  id: runtimeSmokeRoot,
+  label: "Runtime Smoke Test",
+  kind: runtimeSmokeTest,
+  description: "Root node for a sample Python-shaped runtime instance.",
+}>
+
+// -----------------------------------------------------------------------------
+// Sample character runtime facts
+// -----------------------------------------------------------------------------
+
+sampleCharacter := <node {
+  id: sampleCharacter,
+  label: "Ari",
+  kind: runtimeCharacter,
+  characterId: "hero_001",
+  name: "Ari",
+  level: 1,
+  xp: 0,
+  source: python,
+  description: "Sample runtime character supplied by Python-shaped test data.",
+}>
+
+sampleCharacterDataFact := <node {
+  id: sampleCharacterDataFact,
+  label: "Sample Character Data Fact",
+  kind: runtimeFact,
+  contract: characterDataContract,
+  source: python,
+  description: "Runtime character identity and progression data matching the character data contract.",
+}>
+
+// -----------------------------------------------------------------------------
+// Sample stat runtime facts
+// -----------------------------------------------------------------------------
+
+sampleStatValuesFact := <node {
+  id: sampleStatValuesFact,
+  label: "Sample Stat Values Fact",
+  kind: runtimeFact,
+  contract: statValuesContract,
+  source: python,
+  description: "Runtime stat values matching the stat values contract.",
+}>
+
+sampleStrengthValue := <node {
+  id: sampleStrengthValue,
+  label: "Strength Value",
+  kind: runtimeStatValue,
+  stat: strength,
+  value: 8,
+  source: python,
+  description: "Live Strength value for the sample character.",
+}>
+
+sampleDefenseValue := <node {
+  id: sampleDefenseValue,
+  label: "Defense Value",
+  kind: runtimeStatValue,
+  stat: defense,
+  value: 6,
+  source: python,
+  description: "Live Defense value for the sample character.",
+}>
+
+sampleIntelligenceValue := <node {
+  id: sampleIntelligenceValue,
+  label: "Intelligence Value",
+  kind: runtimeStatValue,
+  stat: intelligence,
+  value: 4,
+  source: python,
+  description: "Live Intelligence value for the sample character.",
+}>
+
+sampleResistanceValue := <node {
+  id: sampleResistanceValue,
+  label: "Resistance Value",
+  kind: runtimeStatValue,
+  stat: resistance,
+  value: 5,
+  source: python,
+  description: "Live Resistance value for the sample character.",
+}>
+
+sampleSpeedValue := <node {
+  id: sampleSpeedValue,
+  label: "Speed Value",
+  kind: runtimeStatValue,
+  stat: speed,
+  value: 7,
+  source: python,
+  description: "Live Speed value for the sample character.",
+}>
+
+sampleDexterityValue := <node {
+  id: sampleDexterityValue,
+  label: "Dexterity Value",
+  kind: runtimeStatValue,
+  stat: dexterity,
+  value: 6,
+  source: python,
+  description: "Live Dexterity value for the sample character.",
+}>
+
+// -----------------------------------------------------------------------------
+// Sample unlocked skill runtime facts
+// -----------------------------------------------------------------------------
+
+sampleUnlockedSkillsFact := <node {
+  id: sampleUnlockedSkillsFact,
+  label: "Sample Unlocked Skills Fact",
+  kind: runtimeFact,
+  contract: unlockedSkillsContract,
+  source: python,
+  description: "Runtime acquired skill ids matching the unlocked skills contract.",
+}>
+
+sampleUnlockedHeavyStrike := <node {
+  id: sampleUnlockedHeavyStrike,
+  label: "Unlocked Heavy Strike",
+  kind: runtimeUnlockedSkill,
+  skill: heavyStrike,
+  skillId: heavyStrike,
+  source: python,
+  description: "Sample character has acquired Heavy Strike.",
+}>
+
+// -----------------------------------------------------------------------------
+// Sample runtime actions
+// -----------------------------------------------------------------------------
+
+sampleTrainStrengthActionRequest := <node {
+  id: sampleTrainStrengthActionRequest,
+  label: "Train Strength Request",
+  kind: runtimeActionRequest,
+  actionType: trainStatAction,
+  target: strength,
+  amount: 1,
+  source: react,
+  appliedBy: python,
+  description: "Sample React request for Python to increase Strength by 1.",
+}>
+
+sampleUnlockShieldGuardActionRequest := <node {
+  id: sampleUnlockShieldGuardActionRequest,
+  label: "Unlock Shield Guard Request",
+  kind: runtimeActionRequest,
+  actionType: unlockSkillAction,
+  target: shieldGuard,
+  source: react,
+  appliedBy: python,
+  description: "Sample React request for Python to acquire Shield Guard if TAT says it is unlockable.",
+}>
+
+// -----------------------------------------------------------------------------
+// Sample projection requests
+// -----------------------------------------------------------------------------
+
+sampleProjectionRequestFact := <node {
+  id: sampleProjectionRequestFact,
+  label: "Sample Projection Request Fact",
+  kind: runtimeFact,
+  contract: runtimeProjectionRequestContract,
+  source: react,
+  description: "Runtime projection request matching the projection request contract.",
+}>
+
+sampleCharacterSheetRequest := <node {
+  id: sampleCharacterSheetRequest,
+  label: "Character Sheet Request",
+  kind: projectionRequest,
+  view: characterSheetView,
+  includeDebug: false,
+  source: react,
+  description: "React requests the character sheet semantic view.",
+}>
+
+sampleStatsViewRequest := <node {
+  id: sampleStatsViewRequest,
+  label: "Stats View Request",
+  kind: projectionRequest,
+  view: statsView,
+  includeDebug: false,
+  source: react,
+  description: "React requests the stats semantic view.",
+}>
+
+sampleSkillTreeViewRequest := <node {
+  id: sampleSkillTreeViewRequest,
+  label: "Skill Tree View Request",
+  kind: projectionRequest,
+  view: skillTreeView,
+  includeDebug: false,
+  source: react,
+  description: "React requests the skill tree semantic view.",
+}>
+
+sampleTopologyViewRequest := <node {
+  id: sampleTopologyViewRequest,
+  label: "Progression Topology Request",
+  kind: projectionRequest,
+  view: progressionTopologyViewNode,
+  includeDebug: true,
+  source: react,
+  description: "React requests the progression topology semantic view.",
+}>
+
+sampleDebugViewRequest := <node {
+  id: sampleDebugViewRequest,
+  label: "Debug Semantic Request",
+  kind: projectionRequest,
+  view: debugSemanticView,
+  includeDebug: true,
+  source: react,
+  description: "React requests the debug semantic view.",
+}>
+
+// -----------------------------------------------------------------------------
+// Smoke test inclusion edges
+// -----------------------------------------------------------------------------
+
+runtimeSmokeIncludesCharacterFact := {
+  runtimeSmokeRoot : includesRuntimeFact : sampleCharacterDataFact
+}
+
+runtimeSmokeIncludesStatValuesFact := {
+  runtimeSmokeRoot : includesRuntimeFact : sampleStatValuesFact
+}
+
+runtimeSmokeIncludesUnlockedSkillsFact := {
+  runtimeSmokeRoot : includesRuntimeFact : sampleUnlockedSkillsFact
+}
+
+runtimeSmokeIncludesProjectionRequestFact := {
+  runtimeSmokeRoot : includesRuntimeFact : sampleProjectionRequestFact
+}
+
+runtimeSmokeIncludesTrainStrengthRequest := {
+  runtimeSmokeRoot : includesRuntimeActionRequest : sampleTrainStrengthActionRequest
+}
+
+runtimeSmokeIncludesUnlockShieldGuardRequest := {
+  runtimeSmokeRoot : includesRuntimeActionRequest : sampleUnlockShieldGuardActionRequest
+}
+
+// -----------------------------------------------------------------------------
+// Contract conformance edges
+// -----------------------------------------------------------------------------
+
+sampleCharacterDataConformsToContract := {
+  sampleCharacterDataFact : conformsTo : characterDataContract
+}
+
+sampleStatValuesConformToContract := {
+  sampleStatValuesFact : conformsTo : statValuesContract
+}
+
+sampleUnlockedSkillsConformToContract := {
+  sampleUnlockedSkillsFact : conformsTo : unlockedSkillsContract
+}
+
+sampleTrainStrengthConformsToRuntimeActionContract := {
+  sampleTrainStrengthActionRequest : conformsTo : runtimeActionContract
+}
+
+sampleUnlockShieldGuardConformsToRuntimeActionContract := {
+  sampleUnlockShieldGuardActionRequest : conformsTo : runtimeActionContract
+}
+
+sampleProjectionRequestConformsToContract := {
+  sampleProjectionRequestFact : conformsTo : runtimeProjectionRequestContract
+}
+
+// -----------------------------------------------------------------------------
+// Runtime fact ownership edges
+// -----------------------------------------------------------------------------
+
+sampleCharacterDataDescribesCharacter := {
+  sampleCharacterDataFact : describes : sampleCharacter
+}
+
+sampleCharacterHasStatValues := {
+  sampleCharacter : hasRuntimeFact : sampleStatValuesFact
+}
+
+sampleCharacterHasUnlockedSkills := {
+  sampleCharacter : hasRuntimeFact : sampleUnlockedSkillsFact
+}
+
+sampleCharacterDataOwnedByPython := {
+  sampleCharacterDataFact : ownedBy : python
+}
+
+sampleStatValuesOwnedByPython := {
+  sampleStatValuesFact : ownedBy : python
+}
+
+sampleUnlockedSkillsOwnedByPython := {
+  sampleUnlockedSkillsFact : ownedBy : python
+}
+
+// -----------------------------------------------------------------------------
+// Character stat value edges
+// -----------------------------------------------------------------------------
+
+sampleStatValuesIncludesStrength := {
+  sampleStatValuesFact : includesStatValue : sampleStrengthValue
+}
+
+sampleStatValuesIncludesDefense := {
+  sampleStatValuesFact : includesStatValue : sampleDefenseValue
+}
+
+sampleStatValuesIncludesIntelligence := {
+  sampleStatValuesFact : includesStatValue : sampleIntelligenceValue
+}
+
+sampleStatValuesIncludesResistance := {
+  sampleStatValuesFact : includesStatValue : sampleResistanceValue
+}
+
+sampleStatValuesIncludesSpeed := {
+  sampleStatValuesFact : includesStatValue : sampleSpeedValue
+}
+
+sampleStatValuesIncludesDexterity := {
+  sampleStatValuesFact : includesStatValue : sampleDexterityValue
+}
+
+sampleStrengthValueAppliesToStrength := {
+  sampleStrengthValue : appliesToStat : strength
+}
+
+sampleDefenseValueAppliesToDefense := {
+  sampleDefenseValue : appliesToStat : defense
+}
+
+sampleIntelligenceValueAppliesToIntelligence := {
+  sampleIntelligenceValue : appliesToStat : intelligence
+}
+
+sampleResistanceValueAppliesToResistance := {
+  sampleResistanceValue : appliesToStat : resistance
+}
+
+sampleSpeedValueAppliesToSpeed := {
+  sampleSpeedValue : appliesToStat : speed
+}
+
+sampleDexterityValueAppliesToDexterity := {
+  sampleDexterityValue : appliesToStat : dexterity
+}
+
+// -----------------------------------------------------------------------------
+// Character unlocked skill edges
+// -----------------------------------------------------------------------------
+
+sampleUnlockedSkillsIncludesHeavyStrike := {
+  sampleUnlockedSkillsFact : includesUnlockedSkill : sampleUnlockedHeavyStrike
+}
+
+sampleUnlockedHeavyStrikeAppliesToHeavyStrike := {
+  sampleUnlockedHeavyStrike : appliesToSkill : heavyStrike
+}
+
+// -----------------------------------------------------------------------------
+// Runtime action semantic edges
+// -----------------------------------------------------------------------------
+
+sampleTrainStrengthUsesTrainStatAction := {
+  sampleTrainStrengthActionRequest : usesActionType : trainStatAction
+}
+
+sampleTrainStrengthTargetsStrength := {
+  sampleTrainStrengthActionRequest : targetsStat : strength
+}
+
+sampleUnlockShieldGuardUsesUnlockSkillAction := {
+  sampleUnlockShieldGuardActionRequest : usesActionType : unlockSkillAction
+}
+
+sampleUnlockShieldGuardTargetsShieldGuard := {
+  sampleUnlockShieldGuardActionRequest : targetsSkill : shieldGuard
+}
+
+// -----------------------------------------------------------------------------
+// Projection request semantic edges
+// -----------------------------------------------------------------------------
+
+sampleProjectionRequestIncludesCharacterSheet := {
+  sampleProjectionRequestFact : includesProjectionRequest : sampleCharacterSheetRequest
+}
+
+sampleProjectionRequestIncludesStatsView := {
+  sampleProjectionRequestFact : includesProjectionRequest : sampleStatsViewRequest
+}
+
+sampleProjectionRequestIncludesSkillTreeView := {
+  sampleProjectionRequestFact : includesProjectionRequest : sampleSkillTreeViewRequest
+}
+
+sampleProjectionRequestIncludesTopologyView := {
+  sampleProjectionRequestFact : includesProjectionRequest : sampleTopologyViewRequest
+}
+
+sampleProjectionRequestIncludesDebugView := {
+  sampleProjectionRequestFact : includesProjectionRequest : sampleDebugViewRequest
+}
+
+sampleCharacterSheetRequestTargetsCharacterSheetView := {
+  sampleCharacterSheetRequest : requestsView : characterSheetView
+}
+
+sampleStatsViewRequestTargetsStatsView := {
+  sampleStatsViewRequest : requestsView : statsView
+}
+
+sampleSkillTreeViewRequestTargetsSkillTreeView := {
+  sampleSkillTreeViewRequest : requestsView : skillTreeView
+}
+
+sampleTopologyViewRequestTargetsTopologyView := {
+  sampleTopologyViewRequest : requestsView : progressionTopologyViewNode
+}
+
+sampleDebugViewRequestTargetsDebugView := {
+  sampleDebugViewRequest : requestsView : debugSemanticView
+}
+
+// -----------------------------------------------------------------------------
+// Runtime facts connect to semantic app surface
+// -----------------------------------------------------------------------------
+
+runtimeSmokeReferencesAppRoot := {
+  runtimeSmokeRoot : referencesAppGraph : characterBuilderRootGraph
+}
+
+runtimeSmokeReferencesRuntimeContract := {
+  runtimeSmokeRoot : referencesContractGraph : runtimeDataContractGraph
+}
+
+runtimeSmokeReferencesCharacterGraph := {
+  runtimeSmokeRoot : referencesSemanticGraph : characterGraph
+}
+
+runtimeSmokeReferencesStatsGraph := {
+  runtimeSmokeRoot : referencesSemanticGraph : statsGraph
+}
+
+runtimeSmokeReferencesSkillsGraph := {
+  runtimeSmokeRoot : referencesSemanticGraph : skillsGraph
+}
+
+runtimeSmokeReferencesUnlockRulesGraph := {
+  runtimeSmokeRoot : referencesSemanticGraph : unlockRulesGraph
+}
+
+runtimeSmokeReferencesProgressionNetwork := {
+  runtimeSmokeRoot : referencesSemanticNetwork : progressionNetwork
+}
+
+runtimeSmokeReferencesProjectionGraph := {
+  runtimeSmokeRoot : referencesProjectionGraph : projectionGraph
+}
+
+// -----------------------------------------------------------------------------
+// Runtime smoke graph
+// -----------------------------------------------------------------------------
+
+runtimeSmokeGraph := @seed(graph) {
+  node: [
+    runtimeSmokeRoot,
+
+    sampleCharacter,
+    sampleCharacterDataFact,
+
+    sampleStatValuesFact,
+    sampleStrengthValue,
+    sampleDefenseValue,
+    sampleIntelligenceValue,
+    sampleResistanceValue,
+    sampleSpeedValue,
+    sampleDexterityValue,
+
+    sampleUnlockedSkillsFact,
+    sampleUnlockedHeavyStrike,
+
+    sampleTrainStrengthActionRequest,
+    sampleUnlockShieldGuardActionRequest,
+
+    sampleProjectionRequestFact,
+    sampleCharacterSheetRequest,
+    sampleStatsViewRequest,
+    sampleSkillTreeViewRequest,
+    sampleTopologyViewRequest,
+    sampleDebugViewRequest,
+  ],
+
+  edge: [
+    runtimeSmokeIncludesCharacterFact,
+    runtimeSmokeIncludesStatValuesFact,
+    runtimeSmokeIncludesUnlockedSkillsFact,
+    runtimeSmokeIncludesProjectionRequestFact,
+    runtimeSmokeIncludesTrainStrengthRequest,
+    runtimeSmokeIncludesUnlockShieldGuardRequest,
+
+    sampleCharacterDataConformsToContract,
+    sampleStatValuesConformToContract,
+    sampleUnlockedSkillsConformToContract,
+    sampleTrainStrengthConformsToRuntimeActionContract,
+    sampleUnlockShieldGuardConformsToRuntimeActionContract,
+    sampleProjectionRequestConformsToContract,
+
+    sampleCharacterDataDescribesCharacter,
+    sampleCharacterHasStatValues,
+    sampleCharacterHasUnlockedSkills,
+
+    sampleCharacterDataOwnedByPython,
+    sampleStatValuesOwnedByPython,
+    sampleUnlockedSkillsOwnedByPython,
+
+    sampleStatValuesIncludesStrength,
+    sampleStatValuesIncludesDefense,
+    sampleStatValuesIncludesIntelligence,
+    sampleStatValuesIncludesResistance,
+    sampleStatValuesIncludesSpeed,
+    sampleStatValuesIncludesDexterity,
+
+    sampleStrengthValueAppliesToStrength,
+    sampleDefenseValueAppliesToDefense,
+    sampleIntelligenceValueAppliesToIntelligence,
+    sampleResistanceValueAppliesToResistance,
+    sampleSpeedValueAppliesToSpeed,
+    sampleDexterityValueAppliesToDexterity,
+
+    sampleUnlockedSkillsIncludesHeavyStrike,
+    sampleUnlockedHeavyStrikeAppliesToHeavyStrike,
+
+    sampleTrainStrengthUsesTrainStatAction,
+    sampleTrainStrengthTargetsStrength,
+    sampleUnlockShieldGuardUsesUnlockSkillAction,
+    sampleUnlockShieldGuardTargetsShieldGuard,
+
+    sampleProjectionRequestIncludesCharacterSheet,
+    sampleProjectionRequestIncludesStatsView,
+    sampleProjectionRequestIncludesSkillTreeView,
+    sampleProjectionRequestIncludesTopologyView,
+    sampleProjectionRequestIncludesDebugView,
+
+    sampleCharacterSheetRequestTargetsCharacterSheetView,
+    sampleStatsViewRequestTargetsStatsView,
+    sampleSkillTreeViewRequestTargetsSkillTreeView,
+    sampleTopologyViewRequestTargetsTopologyView,
+    sampleDebugViewRequestTargetsDebugView,
+
+    runtimeSmokeReferencesAppRoot,
+    runtimeSmokeReferencesRuntimeContract,
+    runtimeSmokeReferencesCharacterGraph,
+    runtimeSmokeReferencesStatsGraph,
+    runtimeSmokeReferencesSkillsGraph,
+    runtimeSmokeReferencesUnlockRulesGraph,
+    runtimeSmokeReferencesProgressionNetwork,
+    runtimeSmokeReferencesProjectionGraph,
+  ],
+
+  meta: {
+    purpose: "Smoke-test Python-shaped runtime facts against the Character Builder semantic surface.",
+    owner: tat,
+    sourceOwner: python,
+    status: "pass_11_runtime_smoke_ready",
+    note: "This is authored sample runtime data, not live Python injection yet.",
+  },
+
+  root: runtimeSmokeRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Smoke readiness query
+// -----------------------------------------------------------------------------
+
+runtimeSmokeHasRequiredFacts := @query(graph) {
+  target: runtimeSmokeGraph,
+  nodes: [
+    runtimeSmokeRoot,
+    sampleCharacter,
+    sampleCharacterDataFact,
+    sampleStatValuesFact,
+    sampleUnlockedSkillsFact,
+    sampleProjectionRequestFact,
+  ],
+  edges: [
+    runtimeSmokeIncludesCharacterFact,
+    runtimeSmokeIncludesStatValuesFact,
+    runtimeSmokeIncludesUnlockedSkillsFact,
+    runtimeSmokeIncludesProjectionRequestFact,
+    sampleCharacterDataConformsToContract,
+    sampleStatValuesConformToContract,
+    sampleUnlockedSkillsConformToContract,
+    sampleProjectionRequestConformsToContract,
+  ],
+  root: runtimeSmokeRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  runtimeSmokeRoot,
+  runtimeSmokeGraph,
+  runtimeSmokeHasRequiredFacts,
+
+  sampleCharacter,
+  sampleCharacterDataFact,
+
+  sampleStatValuesFact,
+  sampleStrengthValue,
+  sampleDefenseValue,
+  sampleIntelligenceValue,
+  sampleResistanceValue,
+  sampleSpeedValue,
+  sampleDexterityValue,
+
+  sampleUnlockedSkillsFact,
+  sampleUnlockedHeavyStrike,
+
+  sampleTrainStrengthActionRequest,
+  sampleUnlockShieldGuardActionRequest,
+
+  sampleProjectionRequestFact,
+  sampleCharacterSheetRequest,
+  sampleStatsViewRequest,
+  sampleSkillTreeViewRequest,
+  sampleTopologyViewRequest,
+  sampleDebugViewRequest,
+}

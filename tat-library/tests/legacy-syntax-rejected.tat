@@ -1,0 +1,9 @@
+// Legacy syntax intentionally rejected by v3.1 canonicalization.
+legacyNode := <{ id: legacyNode }>
+legacyGraph := @seed() { node: [legacyNode], root: legacyNode }
+legacyValue := @compute(max(1, 2))
+legacyDerived := @derive(1 + 2)
+legacyTraverse := @traverse(legacyGraph) { from: legacyNode, to: legacyNode }
+legacyAction := @action(actor, target) { -> @update(state) { target.hp = 1 } }
+@when(lowHp) { if: @query(state) { target: legacyNode, key: hp, value: < 10 }, do: { -> legacyAction(legacyNode) } }
+legacyRepeat := legacyGraph -> @repeat(3) { do: { -> legacyAction(legacyNode) } }

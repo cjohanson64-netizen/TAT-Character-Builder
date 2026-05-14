@@ -1,0 +1,730 @@
+// -----------------------------------------------------------------------------
+// skill-status.projection.tat
+// Character + Skill Builder
+//
+// Pass 13 goal:
+// Shape interpreted skill unlock statuses into a React-facing semantic view.
+//
+// This file does not calculate unlock status.
+// This file does not mutate runtime data.
+// This file does not render UI.
+//
+// It takes the Pass 12 interpretation graph and defines a projection-ready
+// skill status surface for React.
+//
+// Flow:
+// runtime facts
+//   -> unlock interpretation graph
+//   -> skill status view graph
+//   -> skill status projection
+//   -> React renders cards/panels
+// -----------------------------------------------------------------------------
+
+import {
+  unlockInterpretationGraph,
+
+  heavyStrikeStatusInterpretation,
+  powerSwingStatusInterpretation,
+  shieldGuardStatusInterpretation,
+  arcaneBoltStatusInterpretation,
+  quickStepStatusInterpretation,
+
+  heavyStrikeAcquiredRequirementMet,
+  powerSwingStrengthRequirementUnmet,
+  powerSwingDependencyRequirementMet,
+  shieldGuardDefenseRequirementUnmet,
+  arcaneBoltIntelligenceRequirementUnmet,
+  quickStepSpeedRequirementUnmet,
+
+  heavyStrikeExplanation,
+  powerSwingExplanation,
+  shieldGuardExplanation,
+  arcaneBoltExplanation,
+  quickStepExplanation,
+} from "./character-builder-unlock-interpretation.tat"
+
+import {
+  heavyStrike,
+  powerSwing,
+  shieldGuard,
+  arcaneBolt,
+  quickStep,
+
+  locked,
+  unlocked,
+
+  requirementMet,
+  requirementUnmet,
+} from "../character-builder.root.tat"
+
+// -----------------------------------------------------------------------------
+// Skill status view root
+// -----------------------------------------------------------------------------
+
+skillStatusViewRoot := <node {
+  id: skillStatusViewRoot,
+  label: "Skill Status View",
+  kind: reactFacingView,
+  description: "Root node for React-facing interpreted skill status data.",
+}>
+
+// -----------------------------------------------------------------------------
+// View section nodes
+// -----------------------------------------------------------------------------
+
+skillStatusCardsSection := <node {
+  id: skillStatusCardsSection,
+  label: "Skill Status Cards",
+  kind: viewSection,
+  description: "Section containing one renderable card per interpreted skill status.",
+}>
+
+skillRequirementSummarySection := <node {
+  id: skillRequirementSummarySection,
+  label: "Skill Requirement Summary",
+  kind: viewSection,
+  description: "Section containing requirement summaries for interpreted skill statuses.",
+}>
+
+skillExplanationSection := <node {
+  id: skillExplanationSection,
+  label: "Skill Explanations",
+  kind: viewSection,
+  description: "Section containing explanation text for interpreted skill statuses.",
+}>
+
+// -----------------------------------------------------------------------------
+// Renderable skill status card nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusCard := <node {
+  id: heavyStrikeStatusCard,
+  label: "Heavy Strike Status Card",
+  kind: skillStatusCard,
+  skill: heavyStrike,
+  status: unlocked,
+  displayStatus: "Unlocked",
+  summary: "Heavy Strike is already unlocked.",
+  sortOrder: 1,
+  description: "React-facing card for Heavy Strike's interpreted unlock status.",
+}>
+
+powerSwingStatusCard := <node {
+  id: powerSwingStatusCard,
+  label: "Power Swing Status Card",
+  kind: skillStatusCard,
+  skill: powerSwing,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Power Swing is locked because Strength is too low.",
+  sortOrder: 2,
+  description: "React-facing card for Power Swing's interpreted unlock status.",
+}>
+
+shieldGuardStatusCard := <node {
+  id: shieldGuardStatusCard,
+  label: "Shield Guard Status Card",
+  kind: skillStatusCard,
+  skill: shieldGuard,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Shield Guard is locked because Defense is too low.",
+  sortOrder: 3,
+  description: "React-facing card for Shield Guard's interpreted unlock status.",
+}>
+
+arcaneBoltStatusCard := <node {
+  id: arcaneBoltStatusCard,
+  label: "Arcane Bolt Status Card",
+  kind: skillStatusCard,
+  skill: arcaneBolt,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Arcane Bolt is locked because Intelligence is too low.",
+  sortOrder: 4,
+  description: "React-facing card for Arcane Bolt's interpreted unlock status.",
+}>
+
+quickStepStatusCard := <node {
+  id: quickStepStatusCard,
+  label: "Quick Step Status Card",
+  kind: skillStatusCard,
+  skill: quickStep,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Quick Step is locked because Speed is too low.",
+  sortOrder: 5,
+  description: "React-facing card for Quick Step's interpreted unlock status.",
+}>
+
+// -----------------------------------------------------------------------------
+// Renderable requirement summary nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeRequirementSummary := <node {
+  id: heavyStrikeRequirementSummary,
+  label: "Heavy Strike Requirement Summary",
+  kind: requirementSummary,
+  targetSkill: heavyStrike,
+  result: requirementMet,
+  displayResult: "Met",
+  actualValue: 8,
+  requiredValue: 8,
+  summary: "Strength 8 meets the required Strength 8.",
+  description: "React-facing requirement summary for Heavy Strike.",
+}>
+
+powerSwingStrengthRequirementSummary := <node {
+  id: powerSwingStrengthRequirementSummary,
+  label: "Power Swing Strength Requirement Summary",
+  kind: requirementSummary,
+  targetSkill: powerSwing,
+  result: requirementUnmet,
+  displayResult: "Unmet",
+  actualValue: 8,
+  requiredValue: 12,
+  summary: "Strength 8 does not meet the required Strength 12.",
+  description: "React-facing Strength requirement summary for Power Swing.",
+}>
+
+powerSwingDependencyRequirementSummary := <node {
+  id: powerSwingDependencyRequirementSummary,
+  label: "Power Swing Dependency Requirement Summary",
+  kind: requirementSummary,
+  targetSkill: powerSwing,
+  result: requirementMet,
+  displayResult: "Met",
+  prerequisiteSkill: heavyStrike,
+  summary: "Heavy Strike dependency is met.",
+  description: "React-facing dependency requirement summary for Power Swing.",
+}>
+
+shieldGuardRequirementSummary := <node {
+  id: shieldGuardRequirementSummary,
+  label: "Shield Guard Requirement Summary",
+  kind: requirementSummary,
+  targetSkill: shieldGuard,
+  result: requirementUnmet,
+  displayResult: "Unmet",
+  actualValue: 6,
+  requiredValue: 8,
+  summary: "Defense 6 does not meet the required Defense 8.",
+  description: "React-facing requirement summary for Shield Guard.",
+}>
+
+arcaneBoltRequirementSummary := <node {
+  id: arcaneBoltRequirementSummary,
+  label: "Arcane Bolt Requirement Summary",
+  kind: requirementSummary,
+  targetSkill: arcaneBolt,
+  result: requirementUnmet,
+  displayResult: "Unmet",
+  actualValue: 4,
+  requiredValue: 8,
+  summary: "Intelligence 4 does not meet the required Intelligence 8.",
+  description: "React-facing requirement summary for Arcane Bolt.",
+}>
+
+quickStepRequirementSummary := <node {
+  id: quickStepRequirementSummary,
+  label: "Quick Step Requirement Summary",
+  kind: requirementSummary,
+  targetSkill: quickStep,
+  result: requirementUnmet,
+  displayResult: "Unmet",
+  actualValue: 7,
+  requiredValue: 8,
+  summary: "Speed 7 does not meet the required Speed 8.",
+  description: "React-facing requirement summary for Quick Step.",
+}>
+
+// -----------------------------------------------------------------------------
+// Renderable explanation summary nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeRenderableExplanation := <node {
+  id: heavyStrikeRenderableExplanation,
+  label: "Heavy Strike Renderable Explanation",
+  kind: renderableExplanation,
+  targetSkill: heavyStrike,
+  text: "Heavy Strike is already unlocked because Python supplied it as an acquired skill.",
+  description: "React-facing explanation text for Heavy Strike.",
+}>
+
+powerSwingRenderableExplanation := <node {
+  id: powerSwingRenderableExplanation,
+  label: "Power Swing Renderable Explanation",
+  kind: renderableExplanation,
+  targetSkill: powerSwing,
+  text: "Power Swing requires Strength 12 and Heavy Strike unlocked. Heavy Strike is unlocked, but Strength is only 8.",
+  description: "React-facing explanation text for Power Swing.",
+}>
+
+shieldGuardRenderableExplanation := <node {
+  id: shieldGuardRenderableExplanation,
+  label: "Shield Guard Renderable Explanation",
+  kind: renderableExplanation,
+  targetSkill: shieldGuard,
+  text: "Shield Guard requires Defense 8, but the sample character has Defense 6.",
+  description: "React-facing explanation text for Shield Guard.",
+}>
+
+arcaneBoltRenderableExplanation := <node {
+  id: arcaneBoltRenderableExplanation,
+  label: "Arcane Bolt Renderable Explanation",
+  kind: renderableExplanation,
+  targetSkill: arcaneBolt,
+  text: "Arcane Bolt requires Intelligence 8, but the sample character has Intelligence 4.",
+  description: "React-facing explanation text for Arcane Bolt.",
+}>
+
+quickStepRenderableExplanation := <node {
+  id: quickStepRenderableExplanation,
+  label: "Quick Step Renderable Explanation",
+  kind: renderableExplanation,
+  targetSkill: quickStep,
+  text: "Quick Step requires Speed 8, but the sample character has Speed 7.",
+  description: "React-facing explanation text for Quick Step.",
+}>
+
+// -----------------------------------------------------------------------------
+// View root edges
+// -----------------------------------------------------------------------------
+
+skillStatusViewIncludesCardsSection := {
+  skillStatusViewRoot : includesSection : skillStatusCardsSection
+}
+
+skillStatusViewIncludesRequirementSummarySection := {
+  skillStatusViewRoot : includesSection : skillRequirementSummarySection
+}
+
+skillStatusViewIncludesExplanationSection := {
+  skillStatusViewRoot : includesSection : skillExplanationSection
+}
+
+// -----------------------------------------------------------------------------
+// Card section edges
+// -----------------------------------------------------------------------------
+
+cardsSectionIncludesHeavyStrikeCard := {
+  skillStatusCardsSection : includesCard : heavyStrikeStatusCard
+}
+
+cardsSectionIncludesPowerSwingCard := {
+  skillStatusCardsSection : includesCard : powerSwingStatusCard
+}
+
+cardsSectionIncludesShieldGuardCard := {
+  skillStatusCardsSection : includesCard : shieldGuardStatusCard
+}
+
+cardsSectionIncludesArcaneBoltCard := {
+  skillStatusCardsSection : includesCard : arcaneBoltStatusCard
+}
+
+cardsSectionIncludesQuickStepCard := {
+  skillStatusCardsSection : includesCard : quickStepStatusCard
+}
+
+// -----------------------------------------------------------------------------
+// Requirement summary section edges
+// -----------------------------------------------------------------------------
+
+requirementSectionIncludesHeavyStrikeSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : heavyStrikeRequirementSummary
+}
+
+requirementSectionIncludesPowerSwingStrengthSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : powerSwingStrengthRequirementSummary
+}
+
+requirementSectionIncludesPowerSwingDependencySummary := {
+  skillRequirementSummarySection : includesRequirementSummary : powerSwingDependencyRequirementSummary
+}
+
+requirementSectionIncludesShieldGuardSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : shieldGuardRequirementSummary
+}
+
+requirementSectionIncludesArcaneBoltSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : arcaneBoltRequirementSummary
+}
+
+requirementSectionIncludesQuickStepSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : quickStepRequirementSummary
+}
+
+// -----------------------------------------------------------------------------
+// Explanation section edges
+// -----------------------------------------------------------------------------
+
+explanationSectionIncludesHeavyStrikeExplanation := {
+  skillExplanationSection : includesExplanation : heavyStrikeRenderableExplanation
+}
+
+explanationSectionIncludesPowerSwingExplanation := {
+  skillExplanationSection : includesExplanation : powerSwingRenderableExplanation
+}
+
+explanationSectionIncludesShieldGuardExplanation := {
+  skillExplanationSection : includesExplanation : shieldGuardRenderableExplanation
+}
+
+explanationSectionIncludesArcaneBoltExplanation := {
+  skillExplanationSection : includesExplanation : arcaneBoltRenderableExplanation
+}
+
+explanationSectionIncludesQuickStepExplanation := {
+  skillExplanationSection : includesExplanation : quickStepRenderableExplanation
+}
+
+// -----------------------------------------------------------------------------
+// Card-to-interpretation edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardRendersInterpretation := {
+  heavyStrikeStatusCard : rendersInterpretation : heavyStrikeStatusInterpretation
+}
+
+powerSwingCardRendersInterpretation := {
+  powerSwingStatusCard : rendersInterpretation : powerSwingStatusInterpretation
+}
+
+shieldGuardCardRendersInterpretation := {
+  shieldGuardStatusCard : rendersInterpretation : shieldGuardStatusInterpretation
+}
+
+arcaneBoltCardRendersInterpretation := {
+  arcaneBoltStatusCard : rendersInterpretation : arcaneBoltStatusInterpretation
+}
+
+quickStepCardRendersInterpretation := {
+  quickStepStatusCard : rendersInterpretation : quickStepStatusInterpretation
+}
+
+// -----------------------------------------------------------------------------
+// Card-to-skill edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardTargetsSkill := {
+  heavyStrikeStatusCard : targetsSkill : heavyStrike
+}
+
+powerSwingCardTargetsSkill := {
+  powerSwingStatusCard : targetsSkill : powerSwing
+}
+
+shieldGuardCardTargetsSkill := {
+  shieldGuardStatusCard : targetsSkill : shieldGuard
+}
+
+arcaneBoltCardTargetsSkill := {
+  arcaneBoltStatusCard : targetsSkill : arcaneBolt
+}
+
+quickStepCardTargetsSkill := {
+  quickStepStatusCard : targetsSkill : quickStep
+}
+
+// -----------------------------------------------------------------------------
+// Card-to-status edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardHasStatus := {
+  heavyStrikeStatusCard : hasStatus : unlocked
+}
+
+powerSwingCardHasStatus := {
+  powerSwingStatusCard : hasStatus : locked
+}
+
+shieldGuardCardHasStatus := {
+  shieldGuardStatusCard : hasStatus : locked
+}
+
+arcaneBoltCardHasStatus := {
+  arcaneBoltStatusCard : hasStatus : locked
+}
+
+quickStepCardHasStatus := {
+  quickStepStatusCard : hasStatus : locked
+}
+
+// -----------------------------------------------------------------------------
+// Card-to-requirement summary edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardHasRequirementSummary := {
+  heavyStrikeStatusCard : hasRequirementSummary : heavyStrikeRequirementSummary
+}
+
+powerSwingCardHasStrengthRequirementSummary := {
+  powerSwingStatusCard : hasRequirementSummary : powerSwingStrengthRequirementSummary
+}
+
+powerSwingCardHasDependencyRequirementSummary := {
+  powerSwingStatusCard : hasRequirementSummary : powerSwingDependencyRequirementSummary
+}
+
+shieldGuardCardHasRequirementSummary := {
+  shieldGuardStatusCard : hasRequirementSummary : shieldGuardRequirementSummary
+}
+
+arcaneBoltCardHasRequirementSummary := {
+  arcaneBoltStatusCard : hasRequirementSummary : arcaneBoltRequirementSummary
+}
+
+quickStepCardHasRequirementSummary := {
+  quickStepStatusCard : hasRequirementSummary : quickStepRequirementSummary
+}
+
+// -----------------------------------------------------------------------------
+// Requirement summary-to-interpretation edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeSummaryRendersRequirementInterpretation := {
+  heavyStrikeRequirementSummary : rendersRequirementInterpretation : heavyStrikeAcquiredRequirementMet
+}
+
+powerSwingStrengthSummaryRendersRequirementInterpretation := {
+  powerSwingStrengthRequirementSummary : rendersRequirementInterpretation : powerSwingStrengthRequirementUnmet
+}
+
+powerSwingDependencySummaryRendersRequirementInterpretation := {
+  powerSwingDependencyRequirementSummary : rendersRequirementInterpretation : powerSwingDependencyRequirementMet
+}
+
+shieldGuardSummaryRendersRequirementInterpretation := {
+  shieldGuardRequirementSummary : rendersRequirementInterpretation : shieldGuardDefenseRequirementUnmet
+}
+
+arcaneBoltSummaryRendersRequirementInterpretation := {
+  arcaneBoltRequirementSummary : rendersRequirementInterpretation : arcaneBoltIntelligenceRequirementUnmet
+}
+
+quickStepSummaryRendersRequirementInterpretation := {
+  quickStepRequirementSummary : rendersRequirementInterpretation : quickStepSpeedRequirementUnmet
+}
+
+// -----------------------------------------------------------------------------
+// Card-to-explanation edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardHasRenderableExplanation := {
+  heavyStrikeStatusCard : hasRenderableExplanation : heavyStrikeRenderableExplanation
+}
+
+powerSwingCardHasRenderableExplanation := {
+  powerSwingStatusCard : hasRenderableExplanation : powerSwingRenderableExplanation
+}
+
+shieldGuardCardHasRenderableExplanation := {
+  shieldGuardStatusCard : hasRenderableExplanation : shieldGuardRenderableExplanation
+}
+
+arcaneBoltCardHasRenderableExplanation := {
+  arcaneBoltStatusCard : hasRenderableExplanation : arcaneBoltRenderableExplanation
+}
+
+quickStepCardHasRenderableExplanation := {
+  quickStepStatusCard : hasRenderableExplanation : quickStepRenderableExplanation
+}
+
+// -----------------------------------------------------------------------------
+// Explanation-to-source edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeRenderableExplanationUsesSourceExplanation := {
+  heavyStrikeRenderableExplanation : rendersExplanation : heavyStrikeExplanation
+}
+
+powerSwingRenderableExplanationUsesSourceExplanation := {
+  powerSwingRenderableExplanation : rendersExplanation : powerSwingExplanation
+}
+
+shieldGuardRenderableExplanationUsesSourceExplanation := {
+  shieldGuardRenderableExplanation : rendersExplanation : shieldGuardExplanation
+}
+
+arcaneBoltRenderableExplanationUsesSourceExplanation := {
+  arcaneBoltRenderableExplanation : rendersExplanation : arcaneBoltExplanation
+}
+
+quickStepRenderableExplanationUsesSourceExplanation := {
+  quickStepRenderableExplanation : rendersExplanation : quickStepExplanation
+}
+
+// -----------------------------------------------------------------------------
+// Source graph reference edge
+// -----------------------------------------------------------------------------
+
+skillStatusViewReferencesUnlockInterpretationGraph := {
+  skillStatusViewRoot : referencesInterpretationGraph : unlockInterpretationGraph
+}
+
+// -----------------------------------------------------------------------------
+// Skill status view graph
+// -----------------------------------------------------------------------------
+
+skillStatusViewGraph := @seed(graph) {
+  node: [
+    skillStatusViewRoot,
+
+    skillStatusCardsSection,
+    skillRequirementSummarySection,
+    skillExplanationSection,
+
+    heavyStrikeStatusCard,
+    powerSwingStatusCard,
+    shieldGuardStatusCard,
+    arcaneBoltStatusCard,
+    quickStepStatusCard,
+
+    heavyStrikeRequirementSummary,
+    powerSwingStrengthRequirementSummary,
+    powerSwingDependencyRequirementSummary,
+    shieldGuardRequirementSummary,
+    arcaneBoltRequirementSummary,
+    quickStepRequirementSummary,
+
+    heavyStrikeRenderableExplanation,
+    powerSwingRenderableExplanation,
+    shieldGuardRenderableExplanation,
+    arcaneBoltRenderableExplanation,
+    quickStepRenderableExplanation,
+  ],
+
+  edge: [
+    skillStatusViewIncludesCardsSection,
+    skillStatusViewIncludesRequirementSummarySection,
+    skillStatusViewIncludesExplanationSection,
+
+    cardsSectionIncludesHeavyStrikeCard,
+    cardsSectionIncludesPowerSwingCard,
+    cardsSectionIncludesShieldGuardCard,
+    cardsSectionIncludesArcaneBoltCard,
+    cardsSectionIncludesQuickStepCard,
+
+    requirementSectionIncludesHeavyStrikeSummary,
+    requirementSectionIncludesPowerSwingStrengthSummary,
+    requirementSectionIncludesPowerSwingDependencySummary,
+    requirementSectionIncludesShieldGuardSummary,
+    requirementSectionIncludesArcaneBoltSummary,
+    requirementSectionIncludesQuickStepSummary,
+
+    explanationSectionIncludesHeavyStrikeExplanation,
+    explanationSectionIncludesPowerSwingExplanation,
+    explanationSectionIncludesShieldGuardExplanation,
+    explanationSectionIncludesArcaneBoltExplanation,
+    explanationSectionIncludesQuickStepExplanation,
+
+    heavyStrikeCardRendersInterpretation,
+    powerSwingCardRendersInterpretation,
+    shieldGuardCardRendersInterpretation,
+    arcaneBoltCardRendersInterpretation,
+    quickStepCardRendersInterpretation,
+
+    heavyStrikeCardTargetsSkill,
+    powerSwingCardTargetsSkill,
+    shieldGuardCardTargetsSkill,
+    arcaneBoltCardTargetsSkill,
+    quickStepCardTargetsSkill,
+
+    heavyStrikeCardHasStatus,
+    powerSwingCardHasStatus,
+    shieldGuardCardHasStatus,
+    arcaneBoltCardHasStatus,
+    quickStepCardHasStatus,
+
+    heavyStrikeCardHasRequirementSummary,
+    powerSwingCardHasStrengthRequirementSummary,
+    powerSwingCardHasDependencyRequirementSummary,
+    shieldGuardCardHasRequirementSummary,
+    arcaneBoltCardHasRequirementSummary,
+    quickStepCardHasRequirementSummary,
+
+    heavyStrikeSummaryRendersRequirementInterpretation,
+    powerSwingStrengthSummaryRendersRequirementInterpretation,
+    powerSwingDependencySummaryRendersRequirementInterpretation,
+    shieldGuardSummaryRendersRequirementInterpretation,
+    arcaneBoltSummaryRendersRequirementInterpretation,
+    quickStepSummaryRendersRequirementInterpretation,
+
+    heavyStrikeCardHasRenderableExplanation,
+    powerSwingCardHasRenderableExplanation,
+    shieldGuardCardHasRenderableExplanation,
+    arcaneBoltCardHasRenderableExplanation,
+    quickStepCardHasRenderableExplanation,
+
+    heavyStrikeRenderableExplanationUsesSourceExplanation,
+    powerSwingRenderableExplanationUsesSourceExplanation,
+    shieldGuardRenderableExplanationUsesSourceExplanation,
+    arcaneBoltRenderableExplanationUsesSourceExplanation,
+    quickStepRenderableExplanationUsesSourceExplanation,
+
+    skillStatusViewReferencesUnlockInterpretationGraph,
+  ],
+
+  meta: {
+    purpose: "Shape interpreted skill unlock statuses into a React-facing semantic view.",
+    owner: tat,
+    targetConsumer: react,
+    status: "pass_13_skill_status_projection_ready",
+    boundary: "TAT shapes renderable meaning. React owns visual rendering.",
+  },
+
+  root: skillStatusViewRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Skill status view projection
+// -----------------------------------------------------------------------------
+
+skillStatusReactProjection := @project(graph) {
+  source: skillStatusViewGraph,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose React-facing skill status cards, requirement summaries, and explanations.",
+}
+
+skillStatusReactProjectionView := skillStatusViewGraph <> skillStatusReactProjection(skillStatusViewGraph)
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  skillStatusViewRoot,
+  skillStatusViewGraph,
+  skillStatusReactProjection,
+  skillStatusReactProjectionView,
+
+  skillStatusCardsSection,
+  skillRequirementSummarySection,
+  skillExplanationSection,
+
+  heavyStrikeStatusCard,
+  powerSwingStatusCard,
+  shieldGuardStatusCard,
+  arcaneBoltStatusCard,
+  quickStepStatusCard,
+
+  heavyStrikeRequirementSummary,
+  powerSwingStrengthRequirementSummary,
+  powerSwingDependencyRequirementSummary,
+  shieldGuardRequirementSummary,
+  arcaneBoltRequirementSummary,
+  quickStepRequirementSummary,
+
+  heavyStrikeRenderableExplanation,
+  powerSwingRenderableExplanation,
+  shieldGuardRenderableExplanation,
+  arcaneBoltRenderableExplanation,
+  quickStepRenderableExplanation,
+}

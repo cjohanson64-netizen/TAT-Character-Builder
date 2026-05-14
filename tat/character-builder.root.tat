@@ -1,0 +1,639 @@
+// -----------------------------------------------------------------------------
+// character-builder.root.tat
+// Character + Skill Builder
+//
+// Pass 10 goal:
+// Create the main semantic entry point for the Character + Skill Builder app,
+// including the runtime data contract.
+//
+// This file does not own domain details.
+// This file does not calculate runtime values.
+// This file does not render UI.
+//
+// It imports the semantic modules, defines the app-level root graph,
+// connects the architecture layers, and exports the core semantic surface.
+// -----------------------------------------------------------------------------
+
+import {
+  statsRoot,
+  strength,
+  defense,
+  intelligence,
+  resistance,
+  speed,
+  dexterity,
+  statsGraph,
+} from "./modules/stats.graph.tat"
+
+import {
+  combatRoot,
+  physicalDamageDealt,
+  physicalDamageAvoided,
+  magicalDamageDealt,
+  magicalDamageAvoided,
+  turnOrder,
+  attackAvoidance,
+  weaponWieldability,
+  attackAccuracy,
+  combatGraph,
+} from "./modules/combat.graph.tat"
+
+import {
+  characterRoot,
+  characterIdentity,
+  characterStats,
+  characterProgression,
+  characterCombatProfile,
+  characterSkillProfile,
+  characterGraph,
+} from "./modules/character.graph.tat"
+
+import {
+  skillsRoot,
+  heavyStrike,
+  powerSwing,
+  shieldGuard,
+  ironWall,
+  arcaneBolt,
+  spellSurge,
+  wardingMind,
+  spellGuard,
+  quickStep,
+  initiative,
+  preciseShot,
+  weaponMastery,
+  skillsGraph,
+} from "./modules/skills.graph.tat"
+
+import {
+  unlockRulesRoot,
+  locked,
+  unlockable,
+  unlocked,
+  statRequirement,
+  skillRequirement,
+  requirementMet,
+  requirementUnmet,
+  blockedByRequirement,
+  blockedByDependency,
+  unlockRulesGraph,
+} from "./modules/unlock.rules.tat"
+
+import {
+  characterStatsBridge,
+  statCombatBridge,
+  characterSkillsBridge,
+  skillRequirementsBridge,
+  characterUnlockBridge,
+  progressionNetwork,
+  hasProgressionNetworkTopology,
+} from "./modules/progression.network.tat"
+
+import {
+  projectionRoot,
+  characterSheetView,
+  statsView,
+  combatView,
+  skillTreeView,
+  unlockRulesView,
+  progressionTopologyViewNode,
+  debugSemanticView,
+
+  characterSheetProjectionView,
+  statsProjectionView,
+  combatProjectionView,
+  skillTreeProjectionView,
+  unlockRulesProjectionView,
+  progressionTopologyProjectionView,
+  debugSemanticProjectionView,
+
+  projectionGraph,
+} from "./modules/projections.tat"
+
+import {
+  runtimeDataContractRoot,
+  runtimeDataContractGraph,
+
+  pythonRuntimeSource,
+  tatSemanticReceiver,
+  reactRenderSource,
+  runtimeInjectionBoundary,
+
+  characterDataContract,
+  statValuesContract,
+  unlockedSkillsContract,
+  runtimeActionContract,
+  runtimeProjectionRequestContract,
+
+  characterIdField,
+  characterNameField,
+  characterLevelField,
+  characterXpField,
+
+  strengthValueField,
+  defenseValueField,
+  intelligenceValueField,
+  resistanceValueField,
+  speedValueField,
+  dexterityValueField,
+
+  unlockedSkillIdsField,
+  unlockedSkillIdField,
+
+  runtimeActionTypeField,
+  runtimeActionTargetField,
+  runtimeActionAmountField,
+
+  trainStatAction,
+  unlockSkillAction,
+  resetCharacterAction,
+
+  projectionRequestViewField,
+  projectionRequestDebugField,
+} from "./modules/runtime-data.contract.tat"
+
+// -----------------------------------------------------------------------------
+// App root node
+// -----------------------------------------------------------------------------
+
+characterBuilderRoot := <node {
+  id: characterBuilderRoot,
+  label: "Character Builder",
+  kind: appRoot,
+  description: "Semantic root for the Character + Skill Builder app.",
+}>
+
+// -----------------------------------------------------------------------------
+// App layer nodes
+// -----------------------------------------------------------------------------
+
+domainGraphsLayer := <node {
+  id: domainGraphsLayer,
+  label: "Domain Graphs Layer",
+  kind: appLayer,
+  description: "Owns standalone semantic domains such as character, stats, combat, skills, and unlock rules.",
+}>
+
+networkLayer := <node {
+  id: networkLayer,
+  label: "Network Layer",
+  kind: appLayer,
+  description: "Owns cross-domain graph topology and semantic bridges.",
+}>
+
+projectionLayer := <node {
+  id: projectionLayer,
+  label: "Projection Layer",
+  kind: appLayer,
+  description: "Owns React-facing semantic projection definitions and projection views.",
+}>
+
+runtimeContractLayer := <node {
+  id: runtimeContractLayer,
+  label: "Runtime Contract Layer",
+  kind: appLayer,
+  description: "Owns the Python-to-TAT data contract and runtime action contract.",
+}>
+
+// -----------------------------------------------------------------------------
+// App boundary nodes
+// -----------------------------------------------------------------------------
+
+runtimeDataBoundary := <node {
+  id: runtimeDataBoundary,
+  label: "Runtime Data Boundary",
+  kind: appBoundary,
+  owner: python,
+  description: "Python owns runtime character values, save data, and injected state.",
+}>
+
+semanticBoundary := <node {
+  id: semanticBoundary,
+  label: "Semantic Boundary",
+  kind: appBoundary,
+  owner: tat,
+  description: "TAT owns meaning, relationships, rules, networks, contracts, and projections.",
+}>
+
+renderBoundary := <node {
+  id: renderBoundary,
+  label: "Render Boundary",
+  kind: appBoundary,
+  owner: react,
+  description: "React owns component rendering, layout, styling, and user interaction surfaces.",
+}>
+
+// -----------------------------------------------------------------------------
+// App root edges
+// -----------------------------------------------------------------------------
+
+appIncludesDomainGraphsLayer := { characterBuilderRoot : includesLayer : domainGraphsLayer }
+
+appIncludesNetworkLayer := { characterBuilderRoot : includesLayer : networkLayer }
+
+appIncludesProjectionLayer := { characterBuilderRoot : includesLayer : projectionLayer }
+
+appIncludesRuntimeContractLayer := { characterBuilderRoot : includesLayer : runtimeContractLayer }
+
+appDefinesRuntimeDataBoundary := { characterBuilderRoot : definesBoundary : runtimeDataBoundary }
+
+appDefinesSemanticBoundary := { characterBuilderRoot : definesBoundary : semanticBoundary }
+
+appDefinesRenderBoundary := { characterBuilderRoot : definesBoundary : renderBoundary }
+
+// -----------------------------------------------------------------------------
+// Layer ownership edges
+// -----------------------------------------------------------------------------
+
+domainGraphsLayerIncludesCharacterGraph := { domainGraphsLayer : includesGraph : characterGraph }
+
+domainGraphsLayerIncludesStatsGraph := { domainGraphsLayer : includesGraph : statsGraph }
+
+domainGraphsLayerIncludesCombatGraph := { domainGraphsLayer : includesGraph : combatGraph }
+
+domainGraphsLayerIncludesSkillsGraph := { domainGraphsLayer : includesGraph : skillsGraph }
+
+domainGraphsLayerIncludesUnlockRulesGraph := { domainGraphsLayer : includesGraph : unlockRulesGraph }
+
+networkLayerIncludesProgressionNetwork := { networkLayer : includesNetwork : progressionNetwork }
+
+networkLayerIncludesCharacterStatsBridge := { networkLayer : includesBridge : characterStatsBridge }
+
+networkLayerIncludesStatCombatBridge := { networkLayer : includesBridge : statCombatBridge }
+
+networkLayerIncludesCharacterSkillsBridge := { networkLayer : includesBridge : characterSkillsBridge }
+
+networkLayerIncludesSkillRequirementsBridge := { networkLayer : includesBridge : skillRequirementsBridge }
+
+networkLayerIncludesCharacterUnlockBridge := { networkLayer : includesBridge : characterUnlockBridge }
+
+projectionLayerIncludesProjectionGraph := { projectionLayer : includesGraph : projectionGraph }
+
+projectionLayerIncludesCharacterSheetView := { projectionLayer : includesView : characterSheetView }
+
+projectionLayerIncludesStatsView := { projectionLayer : includesView : statsView }
+
+projectionLayerIncludesCombatView := { projectionLayer : includesView : combatView }
+
+projectionLayerIncludesSkillTreeView := { projectionLayer : includesView : skillTreeView }
+
+projectionLayerIncludesUnlockRulesView := { projectionLayer : includesView : unlockRulesView }
+
+projectionLayerIncludesProgressionTopologyView := { projectionLayer : includesView : progressionTopologyViewNode }
+
+projectionLayerIncludesDebugSemanticView := { projectionLayer : includesView : debugSemanticView }
+
+runtimeContractLayerIncludesRuntimeDataContract := {
+  runtimeContractLayer : includesGraph : runtimeDataContractGraph
+}
+
+runtimeContractLayerIncludesCharacterDataContract := {
+  runtimeContractLayer : includesContract : characterDataContract
+}
+
+runtimeContractLayerIncludesStatValuesContract := {
+  runtimeContractLayer : includesContract : statValuesContract
+}
+
+runtimeContractLayerIncludesUnlockedSkillsContract := {
+  runtimeContractLayer : includesContract : unlockedSkillsContract
+}
+
+runtimeContractLayerIncludesRuntimeActionContract := {
+  runtimeContractLayer : includesContract : runtimeActionContract
+}
+
+runtimeContractLayerIncludesProjectionRequestContract := {
+  runtimeContractLayer : includesContract : runtimeProjectionRequestContract
+}
+
+// -----------------------------------------------------------------------------
+// Boundary responsibility edges
+// -----------------------------------------------------------------------------
+
+runtimeDataBoundaryFeedsSemanticBoundary := { runtimeDataBoundary : feeds : semanticBoundary }
+
+semanticBoundaryFeedsRenderBoundary := { semanticBoundary : feeds : renderBoundary }
+
+semanticBoundaryProjectsToRenderBoundary := { semanticBoundary : projectsTo : renderBoundary }
+
+renderBoundaryRequestsRuntimeActions := { renderBoundary : requestsActionFrom : runtimeDataBoundary }
+
+runtimeDataBoundaryInjectsIntoSemanticBoundary := { runtimeDataBoundary : injectsInto : semanticBoundary }
+
+runtimeDataBoundaryGovernedByRuntimeContract := {
+  runtimeDataBoundary : governedBy : runtimeDataContractGraph
+}
+
+runtimeContractLayerDefinesRuntimeDataBoundary := {
+  runtimeContractLayer : definesBoundaryContractFor : runtimeDataBoundary
+}
+
+runtimeContractLayerDefinesSemanticBoundaryInput := {
+  runtimeContractLayer : definesInputContractFor : semanticBoundary
+}
+
+projectionLayerDefinesRenderBoundaryOutput := {
+  projectionLayer : definesOutputContractFor : renderBoundary
+}
+
+// -----------------------------------------------------------------------------
+// Cross-layer semantic edges
+// -----------------------------------------------------------------------------
+
+runtimeDataContractFeedsCharacterGraph := {
+  runtimeDataContractGraph : feedsRuntimeFactsTo : characterGraph
+}
+
+runtimeDataContractFeedsStatsGraph := {
+  runtimeDataContractGraph : feedsRuntimeFactsTo : statsGraph
+}
+
+runtimeDataContractFeedsUnlockRulesGraph := {
+  runtimeDataContractGraph : feedsRuntimeFactsTo : unlockRulesGraph
+}
+
+runtimeDataContractFeedsProgressionNetwork := {
+  runtimeDataContractGraph : feedsRuntimeFactsTo : progressionNetwork
+}
+
+progressionNetworkFeedsProjectionGraph := {
+  progressionNetwork : feedsTopologyTo : projectionGraph
+}
+
+projectionGraphExposesViewsToReact := {
+  projectionGraph : exposesViewsTo : renderBoundary
+}
+
+// -----------------------------------------------------------------------------
+// App entry graph
+// -----------------------------------------------------------------------------
+
+characterBuilderRootGraph := @seed(graph) {
+  node: [
+    characterBuilderRoot,
+
+    domainGraphsLayer,
+    networkLayer,
+    projectionLayer,
+    runtimeContractLayer,
+
+    runtimeDataBoundary,
+    semanticBoundary,
+    renderBoundary,
+  ],
+
+  edge: [
+    appIncludesDomainGraphsLayer,
+    appIncludesNetworkLayer,
+    appIncludesProjectionLayer,
+    appIncludesRuntimeContractLayer,
+
+    appDefinesRuntimeDataBoundary,
+    appDefinesSemanticBoundary,
+    appDefinesRenderBoundary,
+
+    domainGraphsLayerIncludesCharacterGraph,
+    domainGraphsLayerIncludesStatsGraph,
+    domainGraphsLayerIncludesCombatGraph,
+    domainGraphsLayerIncludesSkillsGraph,
+    domainGraphsLayerIncludesUnlockRulesGraph,
+
+    networkLayerIncludesProgressionNetwork,
+    networkLayerIncludesCharacterStatsBridge,
+    networkLayerIncludesStatCombatBridge,
+    networkLayerIncludesCharacterSkillsBridge,
+    networkLayerIncludesSkillRequirementsBridge,
+    networkLayerIncludesCharacterUnlockBridge,
+
+    projectionLayerIncludesProjectionGraph,
+    projectionLayerIncludesCharacterSheetView,
+    projectionLayerIncludesStatsView,
+    projectionLayerIncludesCombatView,
+    projectionLayerIncludesSkillTreeView,
+    projectionLayerIncludesUnlockRulesView,
+    projectionLayerIncludesProgressionTopologyView,
+    projectionLayerIncludesDebugSemanticView,
+
+    runtimeContractLayerIncludesRuntimeDataContract,
+    runtimeContractLayerIncludesCharacterDataContract,
+    runtimeContractLayerIncludesStatValuesContract,
+    runtimeContractLayerIncludesUnlockedSkillsContract,
+    runtimeContractLayerIncludesRuntimeActionContract,
+    runtimeContractLayerIncludesProjectionRequestContract,
+
+    runtimeDataBoundaryFeedsSemanticBoundary,
+    semanticBoundaryFeedsRenderBoundary,
+    semanticBoundaryProjectsToRenderBoundary,
+    renderBoundaryRequestsRuntimeActions,
+    runtimeDataBoundaryInjectsIntoSemanticBoundary,
+
+    runtimeDataBoundaryGovernedByRuntimeContract,
+    runtimeContractLayerDefinesRuntimeDataBoundary,
+    runtimeContractLayerDefinesSemanticBoundaryInput,
+    projectionLayerDefinesRenderBoundaryOutput,
+
+    runtimeDataContractFeedsCharacterGraph,
+    runtimeDataContractFeedsStatsGraph,
+    runtimeDataContractFeedsUnlockRulesGraph,
+    runtimeDataContractFeedsProgressionNetwork,
+    progressionNetworkFeedsProjectionGraph,
+    projectionGraphExposesViewsToReact,
+  ],
+
+  meta: {
+    purpose: "Provide the main semantic entry point for the Character + Skill Builder app.",
+    architecture: "Python owns data. TAT owns semantics, relationships, contracts, and projections. React owns rendering.",
+    owner: tat,
+    status: "pass_10_root_entry_with_runtime_contract_ready",
+  },
+
+  root: characterBuilderRoot,
+}
+
+// -----------------------------------------------------------------------------
+// App readiness query
+// -----------------------------------------------------------------------------
+
+characterBuilderHasSemanticFoundation := @query(graph) {
+  target: characterBuilderRootGraph,
+  nodes: [
+    characterBuilderRoot,
+    domainGraphsLayer,
+    networkLayer,
+    projectionLayer,
+    runtimeContractLayer,
+    runtimeDataBoundary,
+    semanticBoundary,
+    renderBoundary,
+  ],
+  edges: [
+    appIncludesDomainGraphsLayer,
+    appIncludesNetworkLayer,
+    appIncludesProjectionLayer,
+    appIncludesRuntimeContractLayer,
+    appDefinesRuntimeDataBoundary,
+    appDefinesSemanticBoundary,
+    appDefinesRenderBoundary,
+    runtimeDataBoundaryGovernedByRuntimeContract,
+  ],
+  root: characterBuilderRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  // App root
+  characterBuilderRoot,
+  characterBuilderRootGraph,
+  characterBuilderHasSemanticFoundation,
+
+  // App layers
+  domainGraphsLayer,
+  networkLayer,
+  projectionLayer,
+  runtimeContractLayer,
+
+  // App boundaries
+  runtimeDataBoundary,
+  semanticBoundary,
+  renderBoundary,
+
+  // Domain roots
+  characterRoot,
+  statsRoot,
+  combatRoot,
+  skillsRoot,
+  unlockRulesRoot,
+  projectionRoot,
+  runtimeDataContractRoot,
+
+  // Domain graphs
+  characterGraph,
+  statsGraph,
+  combatGraph,
+  skillsGraph,
+  unlockRulesGraph,
+  projectionGraph,
+  runtimeDataContractGraph,
+
+  // Network
+  progressionNetwork,
+  hasProgressionNetworkTopology,
+
+  // Runtime data contract sources/boundaries
+  pythonRuntimeSource,
+  tatSemanticReceiver,
+  reactRenderSource,
+  runtimeInjectionBoundary,
+
+  // Runtime data contracts
+  characterDataContract,
+  statValuesContract,
+  unlockedSkillsContract,
+  runtimeActionContract,
+  runtimeProjectionRequestContract,
+
+  // Runtime data fields
+  characterIdField,
+  characterNameField,
+  characterLevelField,
+  characterXpField,
+  strengthValueField,
+  defenseValueField,
+  intelligenceValueField,
+  resistanceValueField,
+  speedValueField,
+  dexterityValueField,
+  unlockedSkillIdsField,
+  unlockedSkillIdField,
+  runtimeActionTypeField,
+  runtimeActionTargetField,
+  runtimeActionAmountField,
+
+  // Runtime actions
+  trainStatAction,
+  unlockSkillAction,
+  resetCharacterAction,
+
+  // Projection request fields
+  projectionRequestViewField,
+  projectionRequestDebugField,
+
+  // Core stat nodes
+  strength,
+  defense,
+  intelligence,
+  resistance,
+  speed,
+  dexterity,
+
+  // Core combat concept nodes
+  physicalDamageDealt,
+  physicalDamageAvoided,
+  magicalDamageDealt,
+  magicalDamageAvoided,
+  turnOrder,
+  attackAvoidance,
+  weaponWieldability,
+  attackAccuracy,
+
+  // Character facet nodes
+  characterIdentity,
+  characterStats,
+  characterProgression,
+  characterCombatProfile,
+  characterSkillProfile,
+
+  // Skill nodes
+  heavyStrike,
+  powerSwing,
+  shieldGuard,
+  ironWall,
+  arcaneBolt,
+  spellSurge,
+  wardingMind,
+  spellGuard,
+  quickStep,
+  initiative,
+  preciseShot,
+  weaponMastery,
+
+  // Unlock vocabulary
+  locked,
+  unlockable,
+  unlocked,
+  statRequirement,
+  skillRequirement,
+  requirementMet,
+  requirementUnmet,
+  blockedByRequirement,
+  blockedByDependency,
+
+  // Network bridges
+  characterStatsBridge,
+  statCombatBridge,
+  characterSkillsBridge,
+  skillRequirementsBridge,
+  characterUnlockBridge,
+
+  // Projection view nodes
+  characterSheetView,
+  statsView,
+  combatView,
+  skillTreeView,
+  unlockRulesView,
+  progressionTopologyViewNode,
+  debugSemanticView,
+
+  // Projection outputs
+  characterSheetProjectionView,
+  statsProjectionView,
+  combatProjectionView,
+  skillTreeProjectionView,
+  unlockRulesProjectionView,
+  progressionTopologyProjectionView,
+  debugSemanticProjectionView,
+}

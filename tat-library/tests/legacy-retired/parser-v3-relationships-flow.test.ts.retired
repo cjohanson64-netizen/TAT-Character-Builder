@@ -1,0 +1,230 @@
+import { describe, expect, it } from "vitest";
+
+import { parseV3Program } from "../src/parser/index";
+
+describe("TAT v3 parser relationships and basic flow", () => {
+  it("parses explicit edge relationship bindings", () => {
+    const program = parseV3Program("edge1 := { node1 : connectedTo : node2 }");
+
+    expect((program.body[0] as any).value).toMatchObject({
+      kind: "Relationship",
+      relationshipKind: "edge",
+      explicit: true,
+      from: { kind: "Identifier", name: "node1" },
+      relation: { kind: "Identifier", name: "connectedTo" },
+      to: { kind: "Identifier", name: "node2" },
+    });
+  });
+
+  it("parses implicit edge relationship bindings", () => {
+    const program = parseV3Program("edge2 := { node1 :: node2 }");
+
+    expect((program.body[0] as any).value).toMatchObject({
+      kind: "Relationship",
+      relationshipKind: "edge",
+      explicit: false,
+      from: { kind: "Identifier", name: "node1" },
+      to: { kind: "Identifier", name: "node2" },
+    });
+  });
+
+  it("parses edge relationships in seed edge arrays", () => {
+    const program = parseV3Program(`
+      graph1 := @seed(graph) {
+        edge: [
+          { node1 : connectedTo : node2 },
+          { node2 :: node3 },
+        ],
+        root: node1,
+      }
+    `);
+
+    const edgeEntry = (program.body[0] as any).value.body.entries[0];
+    expect(edgeEntry.value.items).toMatchObject([
+      {
+        kind: "Relationship",
+        relationshipKind: "edge",
+        explicit: true,
+        from: { name: "node1" },
+        relation: { name: "connectedTo" },
+        to: { name: "node2" },
+      },
+      {
+        kind: "Relationship",
+        relationshipKind: "edge",
+        explicit: false,
+        from: { name: "node2" },
+        to: { name: "node3" },
+      },
+    ]);
+  });
+
+  it("parses implicit graph relationship statements", () => {
+    const program = parseV3Program(`
+      graph1 :: graph2 {
+        through: edge1
+      }
+    `);
+
+    expect(program.body[0]).toMatchObject({
+      kind: "Relationship",
+      relationshipKind: "graph",
+      explicit: false,
+      left: { kind: "Identifier", name: "graph1" },
+      right: { kind: "Identifier", name: "graph2" },
+      body: {
+        kind: "Object",
+        entries: [{ kind: "ObjectEntry", key: { name: "through" }, value: { name: "edge1" } }],
+      },
+    });
+  });
+
+  it("parses contextual graph relationship statements", () => {
+    const program = parseV3Program(`
+      graph1 : node1 : graph2 {
+        through: edge1
+      }
+    `);
+
+    expect(program.body[0]).toMatchObject({
+      kind: "Relationship",
+      relationshipKind: "graph",
+      explicit: true,
+      left: { kind: "Identifier", name: "graph1" },
+      context: { kind: "Identifier", name: "node1" },
+      right: { kind: "Identifier", name: "graph2" },
+      body: {
+        kind: "Object",
+        entries: [{ kind: "ObjectEntry", key: { name: "through" }, value: { name: "edge1" } }],
+      },
+    });
+  });
+
+  it("parses flow with mutation invocation", () => {
+    const program = parseV3Program(`
+      result := graph1
+        -> action1(node1)
+    `);
+
+    expect((program.body[0] as any).value).toMatchObject({
+      kind: "Flow",
+      sourceNode: { kind: "Identifier", name: "graph1" },
+      steps: [
+        {
+          kind: "FlowStep",
+          operator: "->",
+          value: {
+            kind: "Invocation",
+            callee: { name: "action1" },
+            args: [{ name: "node1" }],
+          },
+        },
+      ],
+    });
+  });
+
+  it("parses flow with mutation directive", () => {
+    const program = parseV3Program(`
+      result := graph1
+        -> @update(state) {
+          node1.hp = @derive(value) { target: value, formula: node1.hp - damage }
+        }
+    `);
+
+    expect((program.body[0] as any).value.steps[0]).toMatchObject({
+      kind: "FlowStep",
+      operator: "->",
+      value: {
+        kind: "Directive",
+        name: "update",
+        body: {
+          entries: [
+            {
+              kind: "Assignment",
+              target: { kind: "Path", parts: [{ name: "node1" }, { name: "hp" }] },
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("parses flow with injection directive", () => {
+    const program = parseV3Program(`
+      result := graph1
+        <- @inject(runtimeHook, "runtime.py")
+    `);
+
+    expect((program.body[0] as any).value.steps[0]).toMatchObject({
+      kind: "FlowStep",
+      operator: "<-",
+      value: {
+        kind: "Directive",
+        name: "inject",
+        args: [
+          { kind: "Identifier", name: "runtimeHook" },
+          { kind: "Literal", literalKind: "string", value: "runtime.py" },
+        ],
+      },
+    });
+  });
+
+  it("parses flow with projection invocation", () => {
+    const program = parseV3Program(`
+      result := graph1
+        <> projection1(node1)
+    `);
+
+    expect((program.body[0] as any).value.steps[0]).toMatchObject({
+      kind: "FlowStep",
+      operator: "<>",
+      value: {
+        kind: "Invocation",
+        callee: { name: "projection1" },
+        args: [{ name: "node1" }],
+      },
+    });
+  });
+
+  it("parses flow with inline projection directive", () => {
+    const program = parseV3Program(`
+      result := graph1
+        <> @who()
+    `);
+
+    expect((program.body[0] as any).value.steps[0]).toMatchObject({
+      kind: "FlowStep",
+      operator: "<>",
+      value: {
+        kind: "Directive",
+        name: "who",
+        args: [],
+      },
+    });
+  });
+
+  it("parses mixed flow chains", () => {
+    const program = parseV3Program(`
+      result := graph1
+        <- @inject(runtimeHook, "runtime.py")
+        -> action1(node1)
+        -> @update(state) {
+          node1.hp = @derive(value) { target: value, formula: node1.hp - damage }
+        }
+        <> projection1(node1)
+        <> @who()
+    `);
+
+    expect((program.body[0] as any).value).toMatchObject({
+      kind: "Flow",
+      sourceNode: { name: "graph1" },
+      steps: [
+        { operator: "<-", value: { kind: "Directive", name: "inject" } },
+        { operator: "->", value: { kind: "Invocation", callee: { name: "action1" } } },
+        { operator: "->", value: { kind: "Directive", name: "update" } },
+        { operator: "<>", value: { kind: "Invocation", callee: { name: "projection1" } } },
+        { operator: "<>", value: { kind: "Directive", name: "who" } },
+      ],
+    });
+  });
+});

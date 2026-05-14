@@ -1,0 +1,247 @@
+import { describe, expect, it } from "vitest";
+
+import { parseV3Program } from "../src/parser/index";
+
+describe("TAT v3 parser gates and projection chains", () => {
+  it("parses conditional gate with query condition", () => {
+    const program = parseV3Program(`
+      result := graph1
+        ?> @query(state) {
+          node: node1,
+          key: hp,
+          value: < 20
+        }
+    `);
+
+    expect((program.body[0] as any).value.steps[0]).toMatchObject({
+      kind: "Gate",
+      operator: "?>",
+      condition: {
+        kind: "Directive",
+        name: "query",
+        body: {
+          entries: [
+            { key: { name: "node" }, value: { name: "node1" } },
+            { key: { name: "key" }, value: { name: "hp" } },
+            {
+              key: { name: "value" },
+              value: {
+                kind: "Expression",
+                expressionKind: "comparison",
+                operator: "<",
+              },
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("parses negated gate with query condition", () => {
+    const program = parseV3Program(`
+      result := graph1
+        !> @query(state) {
+          node: node1,
+          key: stunned,
+          value: true
+        }
+    `);
+
+    expect((program.body[0] as any).value.steps[0]).toMatchObject({
+      kind: "Gate",
+      operator: "!>",
+      condition: {
+        kind: "Directive",
+        name: "query",
+        body: {
+          entries: [
+            { key: { name: "node" }, value: { name: "node1" } },
+            { key: { name: "key" }, value: { name: "stunned" } },
+            { key: { name: "value" }, value: { literalKind: "boolean", value: true } },
+          ],
+        },
+      },
+    });
+  });
+
+  it("parses conditionless fallback gate", () => {
+    const program = parseV3Program(`
+      result := graph1
+        :>
+        -> action2(node1)
+    `);
+
+    expect((program.body[0] as any).value.steps).toMatchObject([
+      { kind: "Gate", operator: ":>" },
+      { kind: "FlowStep", operator: "->", value: { callee: { name: "action2" } } },
+    ]);
+    expect((program.body[0] as any).value.steps[0].condition).toBeUndefined();
+  });
+
+  it("parses gate plus mutation segment flow", () => {
+    const program = parseV3Program(`
+      result := graph1
+        ?> @query(state) {
+          node: node1,
+          key: hp,
+          value: < 20
+        }
+        -> action1(node1)
+        :>
+        -> action2(node1)
+    `);
+
+    expect((program.body[0] as any).value.steps).toMatchObject([
+      { kind: "Gate", operator: "?>" },
+      { kind: "FlowStep", operator: "->", value: { callee: { name: "action1" } } },
+      { kind: "Gate", operator: ":>" },
+      { kind: "FlowStep", operator: "->", value: { callee: { name: "action2" } } },
+    ]);
+  });
+
+  it("parses multiple gate segments in order", () => {
+    const program = parseV3Program(`
+      result := graph1
+        ?> @query(state) {
+          node: node1,
+          key: trust,
+          value: > 50
+        }
+        -> @graft(edge) {
+          edge3: { node1 : trusts : node2 }
+        }
+        -> @graft(node) {
+          node3: <node { id: node3 }>
+        }
+        ?> @query(state) {
+          node: node1,
+          key: fear,
+          value: > 50
+        }
+        -> action2(node1)
+    `);
+
+    expect((program.body[0] as any).value.steps.map((step: any) => step.operator)).toEqual([
+      "?>",
+      "->",
+      "->",
+      "?>",
+      "->",
+    ]);
+  });
+
+  it("parses projection chain with invocation and explanation directives", () => {
+    const program = parseV3Program(`
+      result := graph1
+        -> action1(node1)
+        <> projection1(node1)
+        <> @who()
+        <> @what()
+        <> @why()
+        <> @how()
+    `);
+
+    expect((program.body[0] as any).value.steps.map((step: any) => step.operator)).toEqual([
+      "->",
+      "<>",
+      "<>",
+      "<>",
+      "<>",
+      "<>",
+    ]);
+    expect((program.body[0] as any).value.steps.slice(1)).toMatchObject([
+      { value: { kind: "Invocation", callee: { name: "projection1" } } },
+      { value: { kind: "Directive", name: "who" } },
+      { value: { kind: "Directive", name: "what" } },
+      { value: { kind: "Directive", name: "why" } },
+      { value: { kind: "Directive", name: "how" } },
+    ]);
+  });
+
+  it("parses inline project directive projection", () => {
+    const program = parseV3Program(`
+      result := graph1
+        <> @project(node1) {
+          format: custom,
+          include: [node1.hp]
+        }
+        <> @who()
+        <> @what()
+    `);
+
+    expect((program.body[0] as any).value.steps).toMatchObject([
+      {
+        operator: "<>",
+        value: {
+          kind: "Directive",
+          name: "project",
+          args: [{ name: "node1" }],
+          body: {
+            entries: [
+              { key: { name: "format" }, value: { name: "custom" } },
+              { key: { name: "include" }, value: { kind: "Array" } },
+            ],
+          },
+        },
+      },
+      { operator: "<>", value: { name: "who" } },
+      { operator: "<>", value: { name: "what" } },
+    ]);
+  });
+
+  it("parses full mixed flow with gates and projections", () => {
+    const program = parseV3Program(`
+      result := graph1
+        <- @inject(runtimeHook, "runtime.py")
+        ?> @query(state) {
+          node: node1,
+          key: hp,
+          value: < 20
+        }
+        -> action1(node1, 10)
+        !> @query(state) {
+          node: node1,
+          key: stunned,
+          value: true
+        }
+        -> action2(node1)
+        :>
+        -> action3(node1)
+        <> projection1(node1)
+        <> @who()
+        <> @what()
+        <> @why()
+        <> @how()
+    `);
+
+    const steps = (program.body[0] as any).value.steps;
+    expect(steps.map((step: any) => step.operator)).toEqual([
+      "<-",
+      "?>",
+      "->",
+      "!>",
+      "->",
+      ":>",
+      "->",
+      "<>",
+      "<>",
+      "<>",
+      "<>",
+      "<>",
+    ]);
+    expect(steps).toMatchObject([
+      { value: { kind: "Directive", name: "inject" } },
+      { kind: "Gate", condition: { kind: "Directive", name: "query" } },
+      { value: { kind: "Invocation", callee: { name: "action1" } } },
+      { kind: "Gate", condition: { kind: "Directive", name: "query" } },
+      { value: { kind: "Invocation", callee: { name: "action2" } } },
+      { kind: "Gate", condition: undefined },
+      { value: { kind: "Invocation", callee: { name: "action3" } } },
+      { value: { kind: "Invocation", callee: { name: "projection1" } } },
+      { value: { kind: "Directive", name: "who" } },
+      { value: { kind: "Directive", name: "what" } },
+      { value: { kind: "Directive", name: "why" } },
+      { value: { kind: "Directive", name: "how" } },
+    ]);
+  });
+});

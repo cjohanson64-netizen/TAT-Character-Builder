@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+
+import { tokenize } from "../src/lexer/index";
+
+function tokenTypes(source: string): string[] {
+  return tokenize(source, { mode: "v3" })
+    .filter((token) => token.type !== "EOF")
+    .map((token) => token.type);
+}
+
+describe("TAT v3 lexer operators", () => {
+  it("tokenizes all v3 multi-character operators with longest-match semantics", () => {
+    const tokens = tokenize(":= -> <- <> ?> !> :> :: <node { }> == != <= >=", {
+      mode: "v3",
+    });
+
+    expect(tokens.map((token) => [token.type, token.value])).toEqual([
+      ["SemanticBind", ":="],
+      ["MutationFlow", "->"],
+      ["InjectionFlow", "<-"],
+      ["ProjectionFlow", "<>"],
+      ["ConditionalGate", "?>"],
+      ["NegatedGate", "!>"],
+      ["FallbackGate", ":>"],
+      ["ImplicitRelation", "::"],
+      ["NodeBodyStart", "<node {"],
+      ["NodeBodyEnd", "}>"],
+      ["EqualEqual", "=="],
+      ["BangEqual", "!="],
+      ["LessEqual", "<="],
+      ["GreaterEqual", ">="],
+      ["EOF", ""],
+    ]);
+  });
+
+  it("does not split ambiguous v3 operators into single-character tokens", () => {
+    expect(tokenTypes("a:=b")).toEqual(["Identifier", "SemanticBind", "Identifier"]);
+    expect(tokenTypes("a::b")).toEqual(["Identifier", "ImplicitRelation", "Identifier"]);
+    expect(tokenTypes("a:>b")).toEqual(["Identifier", "FallbackGate", "Identifier"]);
+    expect(tokenTypes("a<node {b}>")).toEqual([
+      "Identifier",
+      "NodeBodyStart",
+      "Identifier",
+      "NodeBodyEnd",
+    ]);
+    expect(tokenTypes("a<=b>=c<>d<-e->f?>g!>h")).toEqual([
+      "Identifier",
+      "LessEqual",
+      "Identifier",
+      "GreaterEqual",
+      "Identifier",
+      "ProjectionFlow",
+      "Identifier",
+      "InjectionFlow",
+      "Identifier",
+      "MutationFlow",
+      "Identifier",
+      "ConditionalGate",
+      "Identifier",
+      "NegatedGate",
+      "Identifier",
+    ]);
+  });
+
+  it("keeps single-character v3 operators available after longer matches fail", () => {
+    expect(tokenTypes("a = b : c < d > e + f - g * h / i . j")).toEqual([
+      "Identifier",
+      "Assign",
+      "Identifier",
+      "Colon",
+      "Identifier",
+      "Less",
+      "Identifier",
+      "Greater",
+      "Identifier",
+      "Plus",
+      "Identifier",
+      "Minus",
+      "Identifier",
+      "Star",
+      "Identifier",
+      "Slash",
+      "Identifier",
+      "Dot",
+      "Identifier",
+    ]);
+  });
+
+  it("tokenizes directive marker separately in v3 mode", () => {
+    expect(tokenTypes("@query(state)")).toEqual([
+      "At",
+      "Identifier",
+      "LeftParen",
+      "Identifier",
+      "RightParen",
+    ]);
+  });
+});

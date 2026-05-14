@@ -1,0 +1,630 @@
+// -----------------------------------------------------------------------------
+// unlock.rules.tat
+// Character + Skill Builder
+//
+// Pass 5 goal:
+// Define the semantic vocabulary and authored requirements for skill unlocking.
+//
+// This file does not evaluate injected stat values yet.
+// This file does not know which skills the character has acquired yet.
+// It only defines:
+// - unlock status vocabulary
+// - requirement vocabulary
+// - skill stat requirements
+// - skill dependency requirements
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Unlock domain root
+// -----------------------------------------------------------------------------
+
+unlockRulesRoot := <node {
+  id: unlockRulesRoot,
+  label: "Unlock Rules",
+  kind: ruleDomain,
+  description: "Root node for skill unlock semantics and authored requirements.",
+}>
+
+// -----------------------------------------------------------------------------
+// Unlock status nodes
+// -----------------------------------------------------------------------------
+
+locked := <node {
+  id: locked,
+  label: "Locked",
+  kind: unlockStatus,
+  description: "The requirement conditions for this skill have not been satisfied.",
+}>
+
+unlockable := <node {
+  id: unlockable,
+  label: "Unlockable",
+  kind: unlockStatus,
+  description: "The requirement conditions are satisfied, but the skill has not been acquired.",
+}>
+
+unlocked := <node {
+  id: unlocked,
+  label: "Unlocked",
+  kind: unlockStatus,
+  description: "The skill has been acquired by the character.",
+}>
+
+// -----------------------------------------------------------------------------
+// Requirement type nodes
+// -----------------------------------------------------------------------------
+
+statRequirement := <node {
+  id: statRequirement,
+  label: "Stat Requirement",
+  kind: requirementType,
+  description: "A requirement based on a character stat meeting a threshold.",
+}>
+
+skillRequirement := <node {
+  id: skillRequirement,
+  label: "Skill Requirement",
+  kind: requirementType,
+  description: "A requirement based on another skill already being unlocked.",
+}>
+
+// -----------------------------------------------------------------------------
+// Requirement result nodes
+// -----------------------------------------------------------------------------
+
+requirementMet := <node {
+  id: requirementMet,
+  label: "Requirement Met",
+  kind: requirementResult,
+  description: "A requirement has been satisfied.",
+}>
+
+requirementUnmet := <node {
+  id: requirementUnmet,
+  label: "Requirement Unmet",
+  kind: requirementResult,
+  description: "A requirement has not been satisfied.",
+}>
+
+blockedByRequirement := <node {
+  id: blockedByRequirement,
+  label: "Blocked By Requirement",
+  kind: blockReason,
+  description: "A skill is blocked because one or more requirements are unmet.",
+}>
+
+blockedByDependency := <node {
+  id: blockedByDependency,
+  label: "Blocked By Dependency",
+  kind: blockReason,
+  description: "A skill is blocked because a prerequisite skill has not been unlocked.",
+}>
+
+// -----------------------------------------------------------------------------
+// Stat requirement nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeStrengthRequirement := <node {
+  id: heavyStrikeStrengthRequirement,
+  label: "Heavy Strike Strength Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: heavyStrike,
+  stat: strength,
+  operator: ">=",
+  requiredValue: 8,
+  description: "Heavy Strike requires Strength 8 or higher.",
+}>
+
+powerSwingStrengthRequirement := <node {
+  id: powerSwingStrengthRequirement,
+  label: "Power Swing Strength Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: powerSwing,
+  stat: strength,
+  operator: ">=",
+  requiredValue: 12,
+  description: "Power Swing requires Strength 12 or higher.",
+}>
+
+shieldGuardDefenseRequirement := <node {
+  id: shieldGuardDefenseRequirement,
+  label: "Shield Guard Defense Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: shieldGuard,
+  stat: defense,
+  operator: ">=",
+  requiredValue: 8,
+  description: "Shield Guard requires Defense 8 or higher.",
+}>
+
+ironWallDefenseRequirement := <node {
+  id: ironWallDefenseRequirement,
+  label: "Iron Wall Defense Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: ironWall,
+  stat: defense,
+  operator: ">=",
+  requiredValue: 12,
+  description: "Iron Wall requires Defense 12 or higher.",
+}>
+
+arcaneBoltIntelligenceRequirement := <node {
+  id: arcaneBoltIntelligenceRequirement,
+  label: "Arcane Bolt Intelligence Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: arcaneBolt,
+  stat: intelligence,
+  operator: ">=",
+  requiredValue: 8,
+  description: "Arcane Bolt requires Intelligence 8 or higher.",
+}>
+
+spellSurgeIntelligenceRequirement := <node {
+  id: spellSurgeIntelligenceRequirement,
+  label: "Spell Surge Intelligence Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: spellSurge,
+  stat: intelligence,
+  operator: ">=",
+  requiredValue: 12,
+  description: "Spell Surge requires Intelligence 12 or higher.",
+}>
+
+wardingMindResistanceRequirement := <node {
+  id: wardingMindResistanceRequirement,
+  label: "Warding Mind Resistance Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: wardingMind,
+  stat: resistance,
+  operator: ">=",
+  requiredValue: 8,
+  description: "Warding Mind requires Resistance 8 or higher.",
+}>
+
+spellGuardResistanceRequirement := <node {
+  id: spellGuardResistanceRequirement,
+  label: "Spell Guard Resistance Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: spellGuard,
+  stat: resistance,
+  operator: ">=",
+  requiredValue: 12,
+  description: "Spell Guard requires Resistance 12 or higher.",
+}>
+
+quickStepSpeedRequirement := <node {
+  id: quickStepSpeedRequirement,
+  label: "Quick Step Speed Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: quickStep,
+  stat: speed,
+  operator: ">=",
+  requiredValue: 8,
+  description: "Quick Step requires Speed 8 or higher.",
+}>
+
+initiativeSpeedRequirement := <node {
+  id: initiativeSpeedRequirement,
+  label: "Initiative Speed Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: initiative,
+  stat: speed,
+  operator: ">=",
+  requiredValue: 12,
+  description: "Initiative requires Speed 12 or higher.",
+}>
+
+preciseShotDexterityRequirement := <node {
+  id: preciseShotDexterityRequirement,
+  label: "Precise Shot Dexterity Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: preciseShot,
+  stat: dexterity,
+  operator: ">=",
+  requiredValue: 8,
+  description: "Precise Shot requires Dexterity 8 or higher.",
+}>
+
+weaponMasteryDexterityRequirement := <node {
+  id: weaponMasteryDexterityRequirement,
+  label: "Weapon Mastery Dexterity Requirement",
+  kind: requirement,
+  requirementKind: statRequirement,
+  targetSkill: weaponMastery,
+  stat: dexterity,
+  operator: ">=",
+  requiredValue: 12,
+  description: "Weapon Mastery requires Dexterity 12 or higher.",
+}>
+
+// -----------------------------------------------------------------------------
+// Skill dependency requirement nodes
+// -----------------------------------------------------------------------------
+
+powerSwingHeavyStrikeRequirement := <node {
+  id: powerSwingHeavyStrikeRequirement,
+  label: "Power Swing Heavy Strike Requirement",
+  kind: requirement,
+  requirementKind: skillRequirement,
+  targetSkill: powerSwing,
+  prerequisiteSkill: heavyStrike,
+  requiredStatus: unlocked,
+  description: "Power Swing requires Heavy Strike to be unlocked.",
+}>
+
+ironWallShieldGuardRequirement := <node {
+  id: ironWallShieldGuardRequirement,
+  label: "Iron Wall Shield Guard Requirement",
+  kind: requirement,
+  requirementKind: skillRequirement,
+  targetSkill: ironWall,
+  prerequisiteSkill: shieldGuard,
+  requiredStatus: unlocked,
+  description: "Iron Wall requires Shield Guard to be unlocked.",
+}>
+
+spellSurgeArcaneBoltRequirement := <node {
+  id: spellSurgeArcaneBoltRequirement,
+  label: "Spell Surge Arcane Bolt Requirement",
+  kind: requirement,
+  requirementKind: skillRequirement,
+  targetSkill: spellSurge,
+  prerequisiteSkill: arcaneBolt,
+  requiredStatus: unlocked,
+  description: "Spell Surge requires Arcane Bolt to be unlocked.",
+}>
+
+spellGuardWardingMindRequirement := <node {
+  id: spellGuardWardingMindRequirement,
+  label: "Spell Guard Warding Mind Requirement",
+  kind: requirement,
+  requirementKind: skillRequirement,
+  targetSkill: spellGuard,
+  prerequisiteSkill: wardingMind,
+  requiredStatus: unlocked,
+  description: "Spell Guard requires Warding Mind to be unlocked.",
+}>
+
+initiativeQuickStepRequirement := <node {
+  id: initiativeQuickStepRequirement,
+  label: "Initiative Quick Step Requirement",
+  kind: requirement,
+  requirementKind: skillRequirement,
+  targetSkill: initiative,
+  prerequisiteSkill: quickStep,
+  requiredStatus: unlocked,
+  description: "Initiative requires Quick Step to be unlocked.",
+}>
+
+weaponMasteryPreciseShotRequirement := <node {
+  id: weaponMasteryPreciseShotRequirement,
+  label: "Weapon Mastery Precise Shot Requirement",
+  kind: requirement,
+  requirementKind: skillRequirement,
+  targetSkill: weaponMastery,
+  prerequisiteSkill: preciseShot,
+  requiredStatus: unlocked,
+  description: "Weapon Mastery requires Precise Shot to be unlocked.",
+}>
+
+// -----------------------------------------------------------------------------
+// Unlock vocabulary edges
+// -----------------------------------------------------------------------------
+
+unlockRulesIncludesLocked := { unlockRulesRoot : includes : locked }
+unlockRulesIncludesUnlockable := { unlockRulesRoot : includes : unlockable }
+unlockRulesIncludesUnlocked := { unlockRulesRoot : includes : unlocked }
+
+unlockRulesIncludesStatRequirement := { unlockRulesRoot : includes : statRequirement }
+unlockRulesIncludesSkillRequirement := { unlockRulesRoot : includes : skillRequirement }
+
+unlockRulesIncludesRequirementMet := { unlockRulesRoot : includes : requirementMet }
+unlockRulesIncludesRequirementUnmet := { unlockRulesRoot : includes : requirementUnmet }
+
+unlockRulesIncludesBlockedByRequirement := { unlockRulesRoot : includes : blockedByRequirement }
+unlockRulesIncludesBlockedByDependency := { unlockRulesRoot : includes : blockedByDependency }
+
+lockedProgressesToUnlockable := { locked : progressesTo : unlockable }
+unlockableProgressesToUnlocked := { unlockable : progressesTo : unlocked }
+
+requirementUnmetCausesLocked := { requirementUnmet : causes : locked }
+requirementMetEnablesUnlockable := { requirementMet : enables : unlockable }
+
+// -----------------------------------------------------------------------------
+// Stat requirement type edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeStrengthRequirementHasType := { heavyStrikeStrengthRequirement : hasRequirementType : statRequirement }
+powerSwingStrengthRequirementHasType := { powerSwingStrengthRequirement : hasRequirementType : statRequirement }
+shieldGuardDefenseRequirementHasType := { shieldGuardDefenseRequirement : hasRequirementType : statRequirement }
+ironWallDefenseRequirementHasType := { ironWallDefenseRequirement : hasRequirementType : statRequirement }
+arcaneBoltIntelligenceRequirementHasType := { arcaneBoltIntelligenceRequirement : hasRequirementType : statRequirement }
+spellSurgeIntelligenceRequirementHasType := { spellSurgeIntelligenceRequirement : hasRequirementType : statRequirement }
+wardingMindResistanceRequirementHasType := { wardingMindResistanceRequirement : hasRequirementType : statRequirement }
+spellGuardResistanceRequirementHasType := { spellGuardResistanceRequirement : hasRequirementType : statRequirement }
+quickStepSpeedRequirementHasType := { quickStepSpeedRequirement : hasRequirementType : statRequirement }
+initiativeSpeedRequirementHasType := { initiativeSpeedRequirement : hasRequirementType : statRequirement }
+preciseShotDexterityRequirementHasType := { preciseShotDexterityRequirement : hasRequirementType : statRequirement }
+weaponMasteryDexterityRequirementHasType := { weaponMasteryDexterityRequirement : hasRequirementType : statRequirement }
+
+// -----------------------------------------------------------------------------
+// Skill dependency requirement type edges
+// -----------------------------------------------------------------------------
+
+powerSwingHeavyStrikeRequirementHasType := { powerSwingHeavyStrikeRequirement : hasRequirementType : skillRequirement }
+ironWallShieldGuardRequirementHasType := { ironWallShieldGuardRequirement : hasRequirementType : skillRequirement }
+spellSurgeArcaneBoltRequirementHasType := { spellSurgeArcaneBoltRequirement : hasRequirementType : skillRequirement }
+spellGuardWardingMindRequirementHasType := { spellGuardWardingMindRequirement : hasRequirementType : skillRequirement }
+initiativeQuickStepRequirementHasType := { initiativeQuickStepRequirement : hasRequirementType : skillRequirement }
+weaponMasteryPreciseShotRequirementHasType := { weaponMasteryPreciseShotRequirement : hasRequirementType : skillRequirement }
+
+// -----------------------------------------------------------------------------
+// Skill has requirement edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeHasStrengthRequirement := { heavyStrike : hasRequirement : heavyStrikeStrengthRequirement }
+
+powerSwingHasStrengthRequirement := { powerSwing : hasRequirement : powerSwingStrengthRequirement }
+powerSwingHasHeavyStrikeRequirement := { powerSwing : hasRequirement : powerSwingHeavyStrikeRequirement }
+
+shieldGuardHasDefenseRequirement := { shieldGuard : hasRequirement : shieldGuardDefenseRequirement }
+
+ironWallHasDefenseRequirement := { ironWall : hasRequirement : ironWallDefenseRequirement }
+ironWallHasShieldGuardRequirement := { ironWall : hasRequirement : ironWallShieldGuardRequirement }
+
+arcaneBoltHasIntelligenceRequirement := { arcaneBolt : hasRequirement : arcaneBoltIntelligenceRequirement }
+
+spellSurgeHasIntelligenceRequirement := { spellSurge : hasRequirement : spellSurgeIntelligenceRequirement }
+spellSurgeHasArcaneBoltRequirement := { spellSurge : hasRequirement : spellSurgeArcaneBoltRequirement }
+
+wardingMindHasResistanceRequirement := { wardingMind : hasRequirement : wardingMindResistanceRequirement }
+
+spellGuardHasResistanceRequirement := { spellGuard : hasRequirement : spellGuardResistanceRequirement }
+spellGuardHasWardingMindRequirement := { spellGuard : hasRequirement : spellGuardWardingMindRequirement }
+
+quickStepHasSpeedRequirement := { quickStep : hasRequirement : quickStepSpeedRequirement }
+
+initiativeHasSpeedRequirement := { initiative : hasRequirement : initiativeSpeedRequirement }
+initiativeHasQuickStepRequirement := { initiative : hasRequirement : initiativeQuickStepRequirement }
+
+preciseShotHasDexterityRequirement := { preciseShot : hasRequirement : preciseShotDexterityRequirement }
+
+weaponMasteryHasDexterityRequirement := { weaponMastery : hasRequirement : weaponMasteryDexterityRequirement }
+weaponMasteryHasPreciseShotRequirement := { weaponMastery : hasRequirement : weaponMasteryPreciseShotRequirement }
+
+// -----------------------------------------------------------------------------
+// Requirement targets stat edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeRequirementTargetsStrength := { heavyStrikeStrengthRequirement : targetsStat : strength }
+powerSwingRequirementTargetsStrength := { powerSwingStrengthRequirement : targetsStat : strength }
+
+shieldGuardRequirementTargetsDefense := { shieldGuardDefenseRequirement : targetsStat : defense }
+ironWallRequirementTargetsDefense := { ironWallDefenseRequirement : targetsStat : defense }
+
+arcaneBoltRequirementTargetsIntelligence := { arcaneBoltIntelligenceRequirement : targetsStat : intelligence }
+spellSurgeRequirementTargetsIntelligence := { spellSurgeIntelligenceRequirement : targetsStat : intelligence }
+
+wardingMindRequirementTargetsResistance := { wardingMindResistanceRequirement : targetsStat : resistance }
+spellGuardRequirementTargetsResistance := { spellGuardResistanceRequirement : targetsStat : resistance }
+
+quickStepRequirementTargetsSpeed := { quickStepSpeedRequirement : targetsStat : speed }
+initiativeRequirementTargetsSpeed := { initiativeSpeedRequirement : targetsStat : speed }
+
+preciseShotRequirementTargetsDexterity := { preciseShotDexterityRequirement : targetsStat : dexterity }
+weaponMasteryRequirementTargetsDexterity := { weaponMasteryDexterityRequirement : targetsStat : dexterity }
+
+// -----------------------------------------------------------------------------
+// Requirement prerequisite skill edges
+// -----------------------------------------------------------------------------
+
+powerSwingRequirementNeedsHeavyStrike := { powerSwingHeavyStrikeRequirement : requiresSkill : heavyStrike }
+
+ironWallRequirementNeedsShieldGuard := { ironWallShieldGuardRequirement : requiresSkill : shieldGuard }
+
+spellSurgeRequirementNeedsArcaneBolt := { spellSurgeArcaneBoltRequirement : requiresSkill : arcaneBolt }
+
+spellGuardRequirementNeedsWardingMind := { spellGuardWardingMindRequirement : requiresSkill : wardingMind }
+
+initiativeRequirementNeedsQuickStep := { initiativeQuickStepRequirement : requiresSkill : quickStep }
+
+weaponMasteryRequirementNeedsPreciseShot := { weaponMasteryPreciseShotRequirement : requiresSkill : preciseShot }
+
+// -----------------------------------------------------------------------------
+// Unlock rules graph
+// -----------------------------------------------------------------------------
+
+unlockRulesGraph := @seed(graph) {
+  node: [
+    unlockRulesRoot,
+
+    locked,
+    unlockable,
+    unlocked,
+
+    statRequirement,
+    skillRequirement,
+
+    requirementMet,
+    requirementUnmet,
+    blockedByRequirement,
+    blockedByDependency,
+
+    heavyStrikeStrengthRequirement,
+    powerSwingStrengthRequirement,
+    shieldGuardDefenseRequirement,
+    ironWallDefenseRequirement,
+    arcaneBoltIntelligenceRequirement,
+    spellSurgeIntelligenceRequirement,
+    wardingMindResistanceRequirement,
+    spellGuardResistanceRequirement,
+    quickStepSpeedRequirement,
+    initiativeSpeedRequirement,
+    preciseShotDexterityRequirement,
+    weaponMasteryDexterityRequirement,
+
+    powerSwingHeavyStrikeRequirement,
+    ironWallShieldGuardRequirement,
+    spellSurgeArcaneBoltRequirement,
+    spellGuardWardingMindRequirement,
+    initiativeQuickStepRequirement,
+    weaponMasteryPreciseShotRequirement,
+  ],
+
+  edge: [
+    unlockRulesIncludesLocked,
+    unlockRulesIncludesUnlockable,
+    unlockRulesIncludesUnlocked,
+
+    unlockRulesIncludesStatRequirement,
+    unlockRulesIncludesSkillRequirement,
+
+    unlockRulesIncludesRequirementMet,
+    unlockRulesIncludesRequirementUnmet,
+
+    unlockRulesIncludesBlockedByRequirement,
+    unlockRulesIncludesBlockedByDependency,
+
+    lockedProgressesToUnlockable,
+    unlockableProgressesToUnlocked,
+
+    requirementUnmetCausesLocked,
+    requirementMetEnablesUnlockable,
+
+    heavyStrikeStrengthRequirementHasType,
+    powerSwingStrengthRequirementHasType,
+    shieldGuardDefenseRequirementHasType,
+    ironWallDefenseRequirementHasType,
+    arcaneBoltIntelligenceRequirementHasType,
+    spellSurgeIntelligenceRequirementHasType,
+    wardingMindResistanceRequirementHasType,
+    spellGuardResistanceRequirementHasType,
+    quickStepSpeedRequirementHasType,
+    initiativeSpeedRequirementHasType,
+    preciseShotDexterityRequirementHasType,
+    weaponMasteryDexterityRequirementHasType,
+
+    powerSwingHeavyStrikeRequirementHasType,
+    ironWallShieldGuardRequirementHasType,
+    spellSurgeArcaneBoltRequirementHasType,
+    spellGuardWardingMindRequirementHasType,
+    initiativeQuickStepRequirementHasType,
+    weaponMasteryPreciseShotRequirementHasType,
+
+    heavyStrikeHasStrengthRequirement,
+
+    powerSwingHasStrengthRequirement,
+    powerSwingHasHeavyStrikeRequirement,
+
+    shieldGuardHasDefenseRequirement,
+
+    ironWallHasDefenseRequirement,
+    ironWallHasShieldGuardRequirement,
+
+    arcaneBoltHasIntelligenceRequirement,
+
+    spellSurgeHasIntelligenceRequirement,
+    spellSurgeHasArcaneBoltRequirement,
+
+    wardingMindHasResistanceRequirement,
+
+    spellGuardHasResistanceRequirement,
+    spellGuardHasWardingMindRequirement,
+
+    quickStepHasSpeedRequirement,
+
+    initiativeHasSpeedRequirement,
+    initiativeHasQuickStepRequirement,
+
+    preciseShotHasDexterityRequirement,
+
+    weaponMasteryHasDexterityRequirement,
+    weaponMasteryHasPreciseShotRequirement,
+
+    heavyStrikeRequirementTargetsStrength,
+    powerSwingRequirementTargetsStrength,
+
+    shieldGuardRequirementTargetsDefense,
+    ironWallRequirementTargetsDefense,
+
+    arcaneBoltRequirementTargetsIntelligence,
+    spellSurgeRequirementTargetsIntelligence,
+
+    wardingMindRequirementTargetsResistance,
+    spellGuardRequirementTargetsResistance,
+
+    quickStepRequirementTargetsSpeed,
+    initiativeRequirementTargetsSpeed,
+
+    preciseShotRequirementTargetsDexterity,
+    weaponMasteryRequirementTargetsDexterity,
+
+    powerSwingRequirementNeedsHeavyStrike,
+    ironWallRequirementNeedsShieldGuard,
+    spellSurgeRequirementNeedsArcaneBolt,
+    spellGuardRequirementNeedsWardingMind,
+    initiativeRequirementNeedsQuickStep,
+    weaponMasteryRequirementNeedsPreciseShot,
+  ],
+
+  meta: {
+    purpose: "Define skill unlock vocabulary and authored skill requirements.",
+    owner: tat,
+    dataBoundary: "No live character stat values or acquired skill state are stored here. Python injects live values later; TAT interprets them later.",
+  },
+
+  root: unlockRulesRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  unlockRulesRoot,
+
+  locked,
+  unlockable,
+  unlocked,
+
+  statRequirement,
+  skillRequirement,
+
+  requirementMet,
+  requirementUnmet,
+  blockedByRequirement,
+  blockedByDependency,
+
+  heavyStrikeStrengthRequirement,
+  powerSwingStrengthRequirement,
+  shieldGuardDefenseRequirement,
+  ironWallDefenseRequirement,
+  arcaneBoltIntelligenceRequirement,
+  spellSurgeIntelligenceRequirement,
+  wardingMindResistanceRequirement,
+  spellGuardResistanceRequirement,
+  quickStepSpeedRequirement,
+  initiativeSpeedRequirement,
+  preciseShotDexterityRequirement,
+  weaponMasteryDexterityRequirement,
+
+  powerSwingHeavyStrikeRequirement,
+  ironWallShieldGuardRequirement,
+  spellSurgeArcaneBoltRequirement,
+  spellGuardWardingMindRequirement,
+  initiativeQuickStepRequirement,
+  weaponMasteryPreciseShotRequirement,
+
+  unlockRulesGraph,
+}

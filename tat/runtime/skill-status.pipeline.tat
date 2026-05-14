@@ -1,0 +1,1255 @@
+// -----------------------------------------------------------------------------
+// skill-status.pipeline.tat
+// Character + Skill Builder
+//
+// Pass 26 goal:
+// Keep runtime values raw, then let TAT own requirement syncing,
+// status interpretation, and React-facing projection data.
+//
+// Python supplies raw runtime facts only.
+// TAT owns semantic interpretation.
+// React owns rendering.
+// -----------------------------------------------------------------------------
+
+import {
+  characterBuilderRootGraph,
+  runtimeDataContractGraph,
+
+  characterGraph,
+  statsGraph,
+  skillsGraph,
+  unlockRulesGraph,
+  progressionNetwork,
+  projectionGraph,
+
+  strength,
+  defense,
+  intelligence,
+  resistance,
+  speed,
+  dexterity,
+
+  heavyStrike,
+  powerSwing,
+  shieldGuard,
+  ironWall,
+  arcaneBolt,
+  spellSurge,
+  wardingMind,
+  spellGuard,
+  quickStep,
+  initiative,
+  preciseShot,
+  weaponMastery,
+
+  locked,
+  unlockable,
+  unlocked,
+
+  requirementMet,
+  requirementUnmet,
+} from "../character-builder.root.tat"
+
+// -----------------------------------------------------------------------------
+// Runtime fact injection
+// -----------------------------------------------------------------------------
+
+runtimeFactsRoot := <node {
+  id: runtimeFactsRoot,
+  label: "Runtime Facts",
+  kind: runtimeFactsRoot,
+  description: "Root node for Python-owned runtime facts injected into TAT.",
+}>
+
+userSkillDefinitionsRoot := <node {
+  id: userSkillDefinitionsRoot,
+  label: "User Skill Definitions",
+  kind: userSkillDefinitionsRoot,
+  description: "Root node for Python-owned user-created skill definitions injected into TAT.",
+}>
+
+runtimeFactsBaseGraph := @seed(graph) {
+  node: [
+    runtimeFactsRoot,
+  ],
+
+  edge: [
+  ],
+
+  meta: {
+    purpose: "Base graph that receives Python-owned runtime facts through @inject.",
+    owner: tat,
+    sourceOwner: python,
+    boundary: "Python supplies values only. TAT owns interpretation.",
+  },
+
+  root: runtimeFactsRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Pass 26 requirement sync actions
+//
+// These run before status interpretation.
+// They keep requirement display values aligned with injected runtime facts.
+// -----------------------------------------------------------------------------
+
+syncPowerSwingRequirement := @action(graph) {
+  ?> @query(state) {
+    target: strength,
+    key: current,
+  }
+
+  -> @update(node) {
+    powerSwingRequirementSummary.actualValue = strength.current,
+    powerSwingRequirementSummary.requiredValue = 12,
+    powerSwingRequirementSummary.result = requirementUnmet,
+    powerSwingRequirementSummary.displayResult = "Unmet",
+    powerSwingRequirementSummary.summary = "Needs more Strength training. Required: 12. Current: " + strength.current + ".",
+  }
+}
+
+syncShieldGuardRequirement := @action(graph) {
+  ?> @query(state) {
+    target: defense,
+    key: current,
+  }
+
+  -> @update(node) {
+    shieldGuardRequirementSummary.actualValue = defense.current,
+    shieldGuardRequirementSummary.requiredValue = 8,
+    shieldGuardRequirementSummary.result = requirementUnmet,
+    shieldGuardRequirementSummary.displayResult = "Unmet",
+    shieldGuardRequirementSummary.summary = "Needs more Defense training. Required: 8. Current: " + defense.current + ".",
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pass 25 / 26 dynamic interpretation actions
+//
+// Python injects raw values only.
+// TAT decides Locked / Ready / Learned.
+// -----------------------------------------------------------------------------
+
+markPowerSwingReady := @action(graph) {
+  ?> @query(state) {
+    target: strength,
+    key: current,
+    value: >= 12,
+  }
+
+  ?> @query(state) {
+    target: heavyStrike,
+    key: learned,
+    value: true,
+  }
+
+  ?> @query(state) {
+    target: powerSwing,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    powerSwingStatusCard.status = unlockable,
+    powerSwingStatusCard.displayStatus = "Ready",
+    powerSwingStatusCard.summary = "Power Swing is ready to learn.",
+
+    powerSwingRequirementSummary.result = requirementMet,
+    powerSwingRequirementSummary.displayResult = "Met",
+    powerSwingRequirementSummary.actualValue = strength.current,
+    powerSwingRequirementSummary.requiredValue = 12,
+    powerSwingRequirementSummary.summary = "Strength training is strong enough. Required: 12. Current: " + strength.current + ".",
+
+    powerSwingRenderableExplanation.text = "Power Swing is ready to learn. Strength is high enough, and Heavy Strike has already been learned.",
+  }
+}
+
+markPowerSwingLearned := @action(graph) {
+  ?> @query(state) {
+    target: powerSwing,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    powerSwingStatusCard.status = unlocked,
+    powerSwingStatusCard.displayStatus = "Learned",
+    powerSwingStatusCard.summary = "Power Swing has been learned.",
+
+    powerSwingRequirementSummary.result = requirementMet,
+    powerSwingRequirementSummary.displayResult = "Met",
+    powerSwingRequirementSummary.actualValue = strength.current,
+    powerSwingRequirementSummary.requiredValue = 12,
+    powerSwingRequirementSummary.summary = "Strength training is strong enough. Required: 12. Current: " + strength.current + ".",
+
+    powerSwingRenderableExplanation.text = "Power Swing has already been learned and is part of this character's skill set.",
+  }
+}
+
+markShieldGuardReady := @action(graph) {
+  ?> @query(state) {
+    target: defense,
+    key: current,
+    value: >= 8,
+  }
+
+  ?> @query(state) {
+    target: shieldGuard,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    shieldGuardStatusCard.status = unlockable,
+    shieldGuardStatusCard.displayStatus = "Ready",
+    shieldGuardStatusCard.summary = "Shield Guard is ready to learn.",
+
+    shieldGuardRequirementSummary.result = requirementMet,
+    shieldGuardRequirementSummary.displayResult = "Met",
+    shieldGuardRequirementSummary.actualValue = defense.current,
+    shieldGuardRequirementSummary.requiredValue = 8,
+    shieldGuardRequirementSummary.summary = "Defense training is strong enough. Required: 8. Current: " + defense.current + ".",
+
+    shieldGuardRenderableExplanation.text = "Shield Guard is ready to learn. Defense is high enough.",
+  }
+}
+
+markShieldGuardLearned := @action(graph) {
+  ?> @query(state) {
+    target: shieldGuard,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    shieldGuardStatusCard.status = unlocked,
+    shieldGuardStatusCard.displayStatus = "Learned",
+    shieldGuardStatusCard.summary = "Shield Guard has been learned.",
+
+    shieldGuardRequirementSummary.result = requirementMet,
+    shieldGuardRequirementSummary.displayResult = "Met",
+    shieldGuardRequirementSummary.actualValue = defense.current,
+    shieldGuardRequirementSummary.requiredValue = 8,
+    shieldGuardRequirementSummary.summary = "Defense training is strong enough. Required: 8. Current: " + defense.current + ".",
+
+    shieldGuardRenderableExplanation.text = "Shield Guard has already been learned and is part of this character's skill set.",
+  }
+}
+
+markIronWallReady := @action(graph) {
+  ?> @query(state) {
+    target: defense,
+    key: current,
+    value: >= 12,
+  }
+
+  ?> @query(state) {
+    target: shieldGuard,
+    key: learned,
+    value: true,
+  }
+
+  ?> @query(state) {
+    target: ironWall,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    ironWallStatusCard.status = unlockable,
+    ironWallStatusCard.displayStatus = "Ready",
+    ironWallStatusCard.summary = "Iron Wall is ready to learn.",
+  }
+}
+
+markIronWallLearned := @action(graph) {
+  ?> @query(state) {
+    target: ironWall,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    ironWallStatusCard.status = unlocked,
+    ironWallStatusCard.displayStatus = "Learned",
+    ironWallStatusCard.summary = "Iron Wall has been learned.",
+  }
+}
+
+markArcaneBoltReady := @action(graph) {
+  ?> @query(state) {
+    target: intelligence,
+    key: current,
+    value: >= 8,
+  }
+
+  ?> @query(state) {
+    target: arcaneBolt,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    arcaneBoltStatusCard.status = unlockable,
+    arcaneBoltStatusCard.displayStatus = "Ready",
+    arcaneBoltStatusCard.summary = "Arcane Bolt is ready to learn.",
+  }
+}
+
+markArcaneBoltLearned := @action(graph) {
+  ?> @query(state) {
+    target: arcaneBolt,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    arcaneBoltStatusCard.status = unlocked,
+    arcaneBoltStatusCard.displayStatus = "Learned",
+    arcaneBoltStatusCard.summary = "Arcane Bolt has been learned.",
+  }
+}
+
+markSpellSurgeReady := @action(graph) {
+  ?> @query(state) {
+    target: intelligence,
+    key: current,
+    value: >= 12,
+  }
+
+  ?> @query(state) {
+    target: arcaneBolt,
+    key: learned,
+    value: true,
+  }
+
+  ?> @query(state) {
+    target: spellSurge,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    spellSurgeStatusCard.status = unlockable,
+    spellSurgeStatusCard.displayStatus = "Ready",
+    spellSurgeStatusCard.summary = "Spell Surge is ready to learn.",
+  }
+}
+
+markSpellSurgeLearned := @action(graph) {
+  ?> @query(state) {
+    target: spellSurge,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    spellSurgeStatusCard.status = unlocked,
+    spellSurgeStatusCard.displayStatus = "Learned",
+    spellSurgeStatusCard.summary = "Spell Surge has been learned.",
+  }
+}
+
+markWardingMindReady := @action(graph) {
+  ?> @query(state) {
+    target: resistance,
+    key: current,
+    value: >= 8,
+  }
+
+  ?> @query(state) {
+    target: wardingMind,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    wardingMindStatusCard.status = unlockable,
+    wardingMindStatusCard.displayStatus = "Ready",
+    wardingMindStatusCard.summary = "Warding Mind is ready to learn.",
+  }
+}
+
+markWardingMindLearned := @action(graph) {
+  ?> @query(state) {
+    target: wardingMind,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    wardingMindStatusCard.status = unlocked,
+    wardingMindStatusCard.displayStatus = "Learned",
+    wardingMindStatusCard.summary = "Warding Mind has been learned.",
+  }
+}
+
+markSpellGuardReady := @action(graph) {
+  ?> @query(state) {
+    target: resistance,
+    key: current,
+    value: >= 12,
+  }
+
+  ?> @query(state) {
+    target: wardingMind,
+    key: learned,
+    value: true,
+  }
+
+  ?> @query(state) {
+    target: spellGuard,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    spellGuardStatusCard.status = unlockable,
+    spellGuardStatusCard.displayStatus = "Ready",
+    spellGuardStatusCard.summary = "Spell Guard is ready to learn.",
+  }
+}
+
+markSpellGuardLearned := @action(graph) {
+  ?> @query(state) {
+    target: spellGuard,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    spellGuardStatusCard.status = unlocked,
+    spellGuardStatusCard.displayStatus = "Learned",
+    spellGuardStatusCard.summary = "Spell Guard has been learned.",
+  }
+}
+
+markQuickStepReady := @action(graph) {
+  ?> @query(state) {
+    target: speed,
+    key: current,
+    value: >= 8,
+  }
+
+  ?> @query(state) {
+    target: quickStep,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    quickStepStatusCard.status = unlockable,
+    quickStepStatusCard.displayStatus = "Ready",
+    quickStepStatusCard.summary = "Quick Step is ready to learn.",
+  }
+}
+
+markQuickStepLearned := @action(graph) {
+  ?> @query(state) {
+    target: quickStep,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    quickStepStatusCard.status = unlocked,
+    quickStepStatusCard.displayStatus = "Learned",
+    quickStepStatusCard.summary = "Quick Step has been learned.",
+  }
+}
+
+markInitiativeReady := @action(graph) {
+  ?> @query(state) {
+    target: speed,
+    key: current,
+    value: >= 12,
+  }
+
+  ?> @query(state) {
+    target: quickStep,
+    key: learned,
+    value: true,
+  }
+
+  ?> @query(state) {
+    target: initiative,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    initiativeStatusCard.status = unlockable,
+    initiativeStatusCard.displayStatus = "Ready",
+    initiativeStatusCard.summary = "Initiative is ready to learn.",
+  }
+}
+
+markInitiativeLearned := @action(graph) {
+  ?> @query(state) {
+    target: initiative,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    initiativeStatusCard.status = unlocked,
+    initiativeStatusCard.displayStatus = "Learned",
+    initiativeStatusCard.summary = "Initiative has been learned.",
+  }
+}
+
+markPreciseShotReady := @action(graph) {
+  ?> @query(state) {
+    target: dexterity,
+    key: current,
+    value: >= 8,
+  }
+
+  ?> @query(state) {
+    target: preciseShot,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    preciseShotStatusCard.status = unlockable,
+    preciseShotStatusCard.displayStatus = "Ready",
+    preciseShotStatusCard.summary = "Precise Shot is ready to learn.",
+  }
+}
+
+markPreciseShotLearned := @action(graph) {
+  ?> @query(state) {
+    target: preciseShot,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    preciseShotStatusCard.status = unlocked,
+    preciseShotStatusCard.displayStatus = "Learned",
+    preciseShotStatusCard.summary = "Precise Shot has been learned.",
+  }
+}
+
+markWeaponMasteryReady := @action(graph) {
+  ?> @query(state) {
+    target: dexterity,
+    key: current,
+    value: >= 12,
+  }
+
+  ?> @query(state) {
+    target: preciseShot,
+    key: learned,
+    value: true,
+  }
+
+  ?> @query(state) {
+    target: weaponMastery,
+    key: learned,
+    value: false,
+  }
+
+  -> @update(node) {
+    weaponMasteryStatusCard.status = unlockable,
+    weaponMasteryStatusCard.displayStatus = "Ready",
+    weaponMasteryStatusCard.summary = "Weapon Mastery is ready to learn.",
+  }
+}
+
+markWeaponMasteryLearned := @action(graph) {
+  ?> @query(state) {
+    target: weaponMastery,
+    key: learned,
+    value: true,
+  }
+
+  -> @update(node) {
+    weaponMasteryStatusCard.status = unlocked,
+    weaponMasteryStatusCard.displayStatus = "Learned",
+    weaponMasteryStatusCard.summary = "Weapon Mastery has been learned.",
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Skill status view root
+// -----------------------------------------------------------------------------
+
+skillStatusViewRoot := <node {
+  id: skillStatusViewRoot,
+  label: "Skill Status View",
+  kind: reactFacingView,
+  description: "Root node for React-facing skill status data interpreted by TAT.",
+}>
+
+skillStatusCardsSection := <node {
+  id: skillStatusCardsSection,
+  label: "Skill Status Cards",
+  kind: viewSection,
+  description: "Section containing one renderable card per interpreted skill status.",
+}>
+
+skillRequirementSummarySection := <node {
+  id: skillRequirementSummarySection,
+  label: "Skill Requirement Summary",
+  kind: viewSection,
+  description: "Section containing requirement summaries for interpreted skill statuses.",
+}>
+
+skillExplanationSection := <node {
+  id: skillExplanationSection,
+  label: "Skill Explanations",
+  kind: viewSection,
+  description: "Section containing explanation text for interpreted skill statuses.",
+}>
+
+// -----------------------------------------------------------------------------
+// Skill status cards
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusCard := <node {
+  id: heavyStrikeStatusCard,
+  label: "Heavy Strike Status Card",
+  kind: skillStatusCard,
+  skill: heavyStrike,
+  status: unlocked,
+  displayStatus: "Learned",
+  summary: "Heavy Strike has been learned.",
+  sortOrder: 1,
+  description: "React-facing card for Heavy Strike.",
+}>
+
+powerSwingStatusCard := <node {
+  id: powerSwingStatusCard,
+  label: "Power Swing Status Card",
+  kind: skillStatusCard,
+  skill: powerSwing,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Train Strength to learn Power Swing.",
+  sortOrder: 2,
+  description: "React-facing card for Power Swing.",
+}>
+
+shieldGuardStatusCard := <node {
+  id: shieldGuardStatusCard,
+  label: "Shield Guard Status Card",
+  kind: skillStatusCard,
+  skill: shieldGuard,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Train Defense to learn Shield Guard.",
+  sortOrder: 3,
+  description: "React-facing card for Shield Guard.",
+}>
+
+ironWallStatusCard := <node {
+  id: ironWallStatusCard,
+  label: "Iron Wall Status Card",
+  kind: skillStatusCard,
+  skill: ironWall,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Learn Shield Guard before learning Iron Wall.",
+  sortOrder: 4,
+  description: "React-facing card for Iron Wall.",
+}>
+
+arcaneBoltStatusCard := <node {
+  id: arcaneBoltStatusCard,
+  label: "Arcane Bolt Status Card",
+  kind: skillStatusCard,
+  skill: arcaneBolt,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Train Intelligence to learn Arcane Bolt.",
+  sortOrder: 5,
+  description: "React-facing card for Arcane Bolt.",
+}>
+
+spellSurgeStatusCard := <node {
+  id: spellSurgeStatusCard,
+  label: "Spell Surge Status Card",
+  kind: skillStatusCard,
+  skill: spellSurge,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Learn Arcane Bolt before learning Spell Surge.",
+  sortOrder: 6,
+  description: "React-facing card for Spell Surge.",
+}>
+
+wardingMindStatusCard := <node {
+  id: wardingMindStatusCard,
+  label: "Warding Mind Status Card",
+  kind: skillStatusCard,
+  skill: wardingMind,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Train Resistance to learn Warding Mind.",
+  sortOrder: 7,
+  description: "React-facing card for Warding Mind.",
+}>
+
+spellGuardStatusCard := <node {
+  id: spellGuardStatusCard,
+  label: "Spell Guard Status Card",
+  kind: skillStatusCard,
+  skill: spellGuard,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Learn Warding Mind before learning Spell Guard.",
+  sortOrder: 8,
+  description: "React-facing card for Spell Guard.",
+}>
+
+quickStepStatusCard := <node {
+  id: quickStepStatusCard,
+  label: "Quick Step Status Card",
+  kind: skillStatusCard,
+  skill: quickStep,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Train Speed to learn Quick Step.",
+  sortOrder: 9,
+  description: "React-facing card for Quick Step.",
+}>
+
+initiativeStatusCard := <node {
+  id: initiativeStatusCard,
+  label: "Initiative Status Card",
+  kind: skillStatusCard,
+  skill: initiative,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Learn Quick Step before learning Initiative.",
+  sortOrder: 10,
+  description: "React-facing card for Initiative.",
+}>
+
+preciseShotStatusCard := <node {
+  id: preciseShotStatusCard,
+  label: "Precise Shot Status Card",
+  kind: skillStatusCard,
+  skill: preciseShot,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Train Dexterity to learn Precise Shot.",
+  sortOrder: 11,
+  description: "React-facing card for Precise Shot.",
+}>
+
+weaponMasteryStatusCard := <node {
+  id: weaponMasteryStatusCard,
+  label: "Weapon Mastery Status Card",
+  kind: skillStatusCard,
+  skill: weaponMastery,
+  status: locked,
+  displayStatus: "Locked",
+  summary: "Learn Precise Shot before learning Weapon Mastery.",
+  sortOrder: 12,
+  description: "React-facing card for Weapon Mastery.",
+}>
+
+// -----------------------------------------------------------------------------
+// Requirement summaries
+// -----------------------------------------------------------------------------
+
+heavyStrikeRequirementSummary := <node {
+  id: heavyStrikeRequirementSummary,
+  label: "Strength Training",
+  kind: requirementSummary,
+  targetSkill: heavyStrike,
+  result: requirementMet,
+  displayResult: "Met",
+  actualValue: 8,
+  requiredValue: 8,
+  summary: "Strength training is strong enough. Required: 8. Current: 8.",
+}>
+
+powerSwingRequirementSummary := <node {
+  id: powerSwingRequirementSummary,
+  label: "Strength Training",
+  kind: requirementSummary,
+  targetSkill: powerSwing,
+  result: requirementUnmet,
+  displayResult: "Unmet",
+  actualValue: 0,
+  requiredValue: 12,
+  summary: "Needs more Strength training. Required: 12. Current: 0.",
+}>
+
+shieldGuardRequirementSummary := <node {
+  id: shieldGuardRequirementSummary,
+  label: "Defense Training",
+  kind: requirementSummary,
+  targetSkill: shieldGuard,
+  result: requirementUnmet,
+  displayResult: "Unmet",
+  actualValue: 0,
+  requiredValue: 8,
+  summary: "Needs more Defense training. Required: 8. Current: 0.",
+}>
+
+// -----------------------------------------------------------------------------
+// Explanation nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeRenderableExplanation := <node {
+  id: heavyStrikeRenderableExplanation,
+  label: "Heavy Strike Explanation",
+  kind: renderableExplanation,
+  targetSkill: heavyStrike,
+  text: "Heavy Strike has already been learned and is part of this character's skill set.",
+}>
+
+powerSwingRenderableExplanation := <node {
+  id: powerSwingRenderableExplanation,
+  label: "Power Swing Explanation",
+  kind: renderableExplanation,
+  targetSkill: powerSwing,
+  text: "Power Swing needs more Strength training.",
+}>
+
+shieldGuardRenderableExplanation := <node {
+  id: shieldGuardRenderableExplanation,
+  label: "Shield Guard Explanation",
+  kind: renderableExplanation,
+  targetSkill: shieldGuard,
+  text: "Shield Guard needs more Defense training.",
+}>
+
+// -----------------------------------------------------------------------------
+// Section edges
+// -----------------------------------------------------------------------------
+
+skillStatusViewIncludesCardsSection := {
+  skillStatusViewRoot : includesSection : skillStatusCardsSection
+}
+
+skillStatusViewIncludesRequirementSummarySection := {
+  skillStatusViewRoot : includesSection : skillRequirementSummarySection
+}
+
+skillStatusViewIncludesExplanationSection := {
+  skillStatusViewRoot : includesSection : skillExplanationSection
+}
+
+// -----------------------------------------------------------------------------
+// Card section edges
+// -----------------------------------------------------------------------------
+
+cardsSectionIncludesHeavyStrikeCard := {
+  skillStatusCardsSection : includesCard : heavyStrikeStatusCard
+}
+
+cardsSectionIncludesPowerSwingCard := {
+  skillStatusCardsSection : includesCard : powerSwingStatusCard
+}
+
+cardsSectionIncludesShieldGuardCard := {
+  skillStatusCardsSection : includesCard : shieldGuardStatusCard
+}
+
+cardsSectionIncludesIronWallCard := {
+  skillStatusCardsSection : includesCard : ironWallStatusCard
+}
+
+cardsSectionIncludesArcaneBoltCard := {
+  skillStatusCardsSection : includesCard : arcaneBoltStatusCard
+}
+
+cardsSectionIncludesSpellSurgeCard := {
+  skillStatusCardsSection : includesCard : spellSurgeStatusCard
+}
+
+cardsSectionIncludesWardingMindCard := {
+  skillStatusCardsSection : includesCard : wardingMindStatusCard
+}
+
+cardsSectionIncludesSpellGuardCard := {
+  skillStatusCardsSection : includesCard : spellGuardStatusCard
+}
+
+cardsSectionIncludesQuickStepCard := {
+  skillStatusCardsSection : includesCard : quickStepStatusCard
+}
+
+cardsSectionIncludesInitiativeCard := {
+  skillStatusCardsSection : includesCard : initiativeStatusCard
+}
+
+cardsSectionIncludesPreciseShotCard := {
+  skillStatusCardsSection : includesCard : preciseShotStatusCard
+}
+
+cardsSectionIncludesWeaponMasteryCard := {
+  skillStatusCardsSection : includesCard : weaponMasteryStatusCard
+}
+
+// -----------------------------------------------------------------------------
+// Card target/status edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardTargetsSkill := {
+  heavyStrikeStatusCard : targetsSkill : heavyStrike
+}
+
+powerSwingCardTargetsSkill := {
+  powerSwingStatusCard : targetsSkill : powerSwing
+}
+
+shieldGuardCardTargetsSkill := {
+  shieldGuardStatusCard : targetsSkill : shieldGuard
+}
+
+ironWallCardTargetsSkill := {
+  ironWallStatusCard : targetsSkill : ironWall
+}
+
+arcaneBoltCardTargetsSkill := {
+  arcaneBoltStatusCard : targetsSkill : arcaneBolt
+}
+
+spellSurgeCardTargetsSkill := {
+  spellSurgeStatusCard : targetsSkill : spellSurge
+}
+
+wardingMindCardTargetsSkill := {
+  wardingMindStatusCard : targetsSkill : wardingMind
+}
+
+spellGuardCardTargetsSkill := {
+  spellGuardStatusCard : targetsSkill : spellGuard
+}
+
+quickStepCardTargetsSkill := {
+  quickStepStatusCard : targetsSkill : quickStep
+}
+
+initiativeCardTargetsSkill := {
+  initiativeStatusCard : targetsSkill : initiative
+}
+
+preciseShotCardTargetsSkill := {
+  preciseShotStatusCard : targetsSkill : preciseShot
+}
+
+weaponMasteryCardTargetsSkill := {
+  weaponMasteryStatusCard : targetsSkill : weaponMastery
+}
+
+heavyStrikeCardHasStatus := {
+  heavyStrikeStatusCard : hasStatus : unlocked
+}
+
+powerSwingCardHasStatus := {
+  powerSwingStatusCard : hasStatus : locked
+}
+
+shieldGuardCardHasStatus := {
+  shieldGuardStatusCard : hasStatus : locked
+}
+
+ironWallCardHasStatus := {
+  ironWallStatusCard : hasStatus : locked
+}
+
+arcaneBoltCardHasStatus := {
+  arcaneBoltStatusCard : hasStatus : locked
+}
+
+spellSurgeCardHasStatus := {
+  spellSurgeStatusCard : hasStatus : locked
+}
+
+wardingMindCardHasStatus := {
+  wardingMindStatusCard : hasStatus : locked
+}
+
+spellGuardCardHasStatus := {
+  spellGuardStatusCard : hasStatus : locked
+}
+
+quickStepCardHasStatus := {
+  quickStepStatusCard : hasStatus : locked
+}
+
+initiativeCardHasStatus := {
+  initiativeStatusCard : hasStatus : locked
+}
+
+preciseShotCardHasStatus := {
+  preciseShotStatusCard : hasStatus : locked
+}
+
+weaponMasteryCardHasStatus := {
+  weaponMasteryStatusCard : hasStatus : locked
+}
+
+// -----------------------------------------------------------------------------
+// Requirement edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardHasRequirementSummary := {
+  heavyStrikeStatusCard : hasRequirementSummary : heavyStrikeRequirementSummary
+}
+
+powerSwingCardHasRequirementSummary := {
+  powerSwingStatusCard : hasRequirementSummary : powerSwingRequirementSummary
+}
+
+shieldGuardCardHasRequirementSummary := {
+  shieldGuardStatusCard : hasRequirementSummary : shieldGuardRequirementSummary
+}
+
+requirementSectionIncludesHeavyStrikeSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : heavyStrikeRequirementSummary
+}
+
+requirementSectionIncludesPowerSwingSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : powerSwingRequirementSummary
+}
+
+requirementSectionIncludesShieldGuardSummary := {
+  skillRequirementSummarySection : includesRequirementSummary : shieldGuardRequirementSummary
+}
+
+// -----------------------------------------------------------------------------
+// Explanation edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeCardHasRenderableExplanation := {
+  heavyStrikeStatusCard : hasRenderableExplanation : heavyStrikeRenderableExplanation
+}
+
+powerSwingCardHasRenderableExplanation := {
+  powerSwingStatusCard : hasRenderableExplanation : powerSwingRenderableExplanation
+}
+
+shieldGuardCardHasRenderableExplanation := {
+  shieldGuardStatusCard : hasRenderableExplanation : shieldGuardRenderableExplanation
+}
+
+explanationSectionIncludesHeavyStrikeExplanation := {
+  skillExplanationSection : includesExplanation : heavyStrikeRenderableExplanation
+}
+
+explanationSectionIncludesPowerSwingExplanation := {
+  skillExplanationSection : includesExplanation : powerSwingRenderableExplanation
+}
+
+explanationSectionIncludesShieldGuardExplanation := {
+  skillExplanationSection : includesExplanation : shieldGuardRenderableExplanation
+}
+
+// -----------------------------------------------------------------------------
+// Provenance edges
+// -----------------------------------------------------------------------------
+
+skillStatusViewReferencesCharacterGraph := {
+  skillStatusViewRoot : referencesSemanticGraph : characterGraph
+}
+
+skillStatusViewReferencesStatsGraph := {
+  skillStatusViewRoot : referencesSemanticGraph : statsGraph
+}
+
+skillStatusViewReferencesSkillsGraph := {
+  skillStatusViewRoot : referencesSemanticGraph : skillsGraph
+}
+
+skillStatusViewReferencesUnlockRulesGraph := {
+  skillStatusViewRoot : referencesSemanticGraph : unlockRulesGraph
+}
+
+// -----------------------------------------------------------------------------
+// Skill status base graph
+// -----------------------------------------------------------------------------
+
+skillStatusBaseGraph := @seed(graph) {
+  node: [
+    skillStatusViewRoot,
+    userSkillDefinitionsRoot,
+
+    skillStatusCardsSection,
+    skillRequirementSummarySection,
+    skillExplanationSection,
+
+    heavyStrikeStatusCard,
+    powerSwingStatusCard,
+    shieldGuardStatusCard,
+    ironWallStatusCard,
+    arcaneBoltStatusCard,
+    spellSurgeStatusCard,
+    wardingMindStatusCard,
+    spellGuardStatusCard,
+    quickStepStatusCard,
+    initiativeStatusCard,
+    preciseShotStatusCard,
+    weaponMasteryStatusCard,
+
+    heavyStrikeRequirementSummary,
+    powerSwingRequirementSummary,
+    shieldGuardRequirementSummary,
+
+    heavyStrikeRenderableExplanation,
+    powerSwingRenderableExplanation,
+    shieldGuardRenderableExplanation,
+  ],
+
+  edge: [
+    skillStatusViewIncludesCardsSection,
+    skillStatusViewIncludesRequirementSummarySection,
+    skillStatusViewIncludesExplanationSection,
+
+    cardsSectionIncludesHeavyStrikeCard,
+    cardsSectionIncludesPowerSwingCard,
+    cardsSectionIncludesShieldGuardCard,
+    cardsSectionIncludesIronWallCard,
+    cardsSectionIncludesArcaneBoltCard,
+    cardsSectionIncludesSpellSurgeCard,
+    cardsSectionIncludesWardingMindCard,
+    cardsSectionIncludesSpellGuardCard,
+    cardsSectionIncludesQuickStepCard,
+    cardsSectionIncludesInitiativeCard,
+    cardsSectionIncludesPreciseShotCard,
+    cardsSectionIncludesWeaponMasteryCard,
+
+    heavyStrikeCardTargetsSkill,
+    powerSwingCardTargetsSkill,
+    shieldGuardCardTargetsSkill,
+    ironWallCardTargetsSkill,
+    arcaneBoltCardTargetsSkill,
+    spellSurgeCardTargetsSkill,
+    wardingMindCardTargetsSkill,
+    spellGuardCardTargetsSkill,
+    quickStepCardTargetsSkill,
+    initiativeCardTargetsSkill,
+    preciseShotCardTargetsSkill,
+    weaponMasteryCardTargetsSkill,
+
+    heavyStrikeCardHasStatus,
+    powerSwingCardHasStatus,
+    shieldGuardCardHasStatus,
+    ironWallCardHasStatus,
+    arcaneBoltCardHasStatus,
+    spellSurgeCardHasStatus,
+    wardingMindCardHasStatus,
+    spellGuardCardHasStatus,
+    quickStepCardHasStatus,
+    initiativeCardHasStatus,
+    preciseShotCardHasStatus,
+    weaponMasteryCardHasStatus,
+
+    heavyStrikeCardHasRequirementSummary,
+    powerSwingCardHasRequirementSummary,
+    shieldGuardCardHasRequirementSummary,
+
+    requirementSectionIncludesHeavyStrikeSummary,
+    requirementSectionIncludesPowerSwingSummary,
+    requirementSectionIncludesShieldGuardSummary,
+
+    heavyStrikeCardHasRenderableExplanation,
+    powerSwingCardHasRenderableExplanation,
+    shieldGuardCardHasRenderableExplanation,
+
+    explanationSectionIncludesHeavyStrikeExplanation,
+    explanationSectionIncludesPowerSwingExplanation,
+    explanationSectionIncludesShieldGuardExplanation,
+
+    skillStatusViewReferencesCharacterGraph,
+    skillStatusViewReferencesStatsGraph,
+    skillStatusViewReferencesSkillsGraph,
+    skillStatusViewReferencesUnlockRulesGraph,
+  ],
+
+  meta: {
+    purpose: "Expose skill status cards while receiving runtime facts through @inject.",
+    owner: tat,
+    targetConsumer: react,
+    status: "pass_26_dynamic_requirement_sync_ready",
+    boundary: "Runtime values enter through @inject. TAT actions derive card status and requirement display values.",
+  },
+
+  root: skillStatusViewRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Skill status interpreted graph
+// -----------------------------------------------------------------------------
+
+skillStatusInjectedGraph := skillStatusBaseGraph
+  <- @inject(character_runtime_facts, ".tat")
+  <- @inject(user_skill_definitions, ".tat")
+
+skillStatusViewGraph := skillStatusInjectedGraph
+  -> syncPowerSwingRequirement(skillStatusInjectedGraph)
+  -> syncShieldGuardRequirement(skillStatusInjectedGraph)
+  -> markPowerSwingReady(skillStatusInjectedGraph)
+  -> markPowerSwingLearned(skillStatusInjectedGraph)
+  -> markShieldGuardReady(skillStatusInjectedGraph)
+  -> markShieldGuardLearned(skillStatusInjectedGraph)
+  -> markIronWallReady(skillStatusInjectedGraph)
+  -> markIronWallLearned(skillStatusInjectedGraph)
+  -> markArcaneBoltReady(skillStatusInjectedGraph)
+  -> markArcaneBoltLearned(skillStatusInjectedGraph)
+  -> markSpellSurgeReady(skillStatusInjectedGraph)
+  -> markSpellSurgeLearned(skillStatusInjectedGraph)
+  -> markWardingMindReady(skillStatusInjectedGraph)
+  -> markWardingMindLearned(skillStatusInjectedGraph)
+  -> markSpellGuardReady(skillStatusInjectedGraph)
+  -> markSpellGuardLearned(skillStatusInjectedGraph)
+  -> markQuickStepReady(skillStatusInjectedGraph)
+  -> markQuickStepLearned(skillStatusInjectedGraph)
+  -> markInitiativeReady(skillStatusInjectedGraph)
+  -> markInitiativeLearned(skillStatusInjectedGraph)
+  -> markPreciseShotReady(skillStatusInjectedGraph)
+  -> markPreciseShotLearned(skillStatusInjectedGraph)
+  -> markWeaponMasteryReady(skillStatusInjectedGraph)
+  -> markWeaponMasteryLearned(skillStatusInjectedGraph)
+
+// -----------------------------------------------------------------------------
+// Projection
+// -----------------------------------------------------------------------------
+
+skillStatusReactProjection := @project(graph) {
+  source: skillStatusViewGraph,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose React-facing skill status cards from the injected runtime pipeline.",
+}
+
+skillStatusReactProjectionView := skillStatusViewGraph <> skillStatusReactProjection(skillStatusViewGraph)
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  skillStatusViewRoot,
+  skillStatusBaseGraph,
+  skillStatusInjectedGraph,
+  skillStatusViewGraph,
+  skillStatusReactProjection,
+  skillStatusReactProjectionView,
+
+  heavyStrikeStatusCard,
+  powerSwingStatusCard,
+  shieldGuardStatusCard,
+  ironWallStatusCard,
+  arcaneBoltStatusCard,
+  spellSurgeStatusCard,
+  wardingMindStatusCard,
+  spellGuardStatusCard,
+  quickStepStatusCard,
+  initiativeStatusCard,
+  preciseShotStatusCard,
+  weaponMasteryStatusCard,
+}

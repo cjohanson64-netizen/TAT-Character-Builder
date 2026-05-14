@@ -1,0 +1,450 @@
+// TAT v3.1 canonical all-directives reference
+// Purpose: syntax contract for semantic binding values + network domain.
+
+// -----------------------------------------------------------------------------
+// Entity declarations
+// -----------------------------------------------------------------------------
+
+hero := <node {
+  id: hero,
+  label: "Hero",
+  kind: character,
+  hp: 100,
+  class: warrior,
+}>
+
+goblin := <node {
+  id: goblin,
+  label: "Goblin",
+  kind: enemy,
+  hp: 40,
+  class: monster,
+}>
+
+fireball := <node {
+  id: fireball,
+  label: "Fireball",
+  kind: skill,
+  element: fire,
+}>
+
+progressionContext := <context {
+  id: progressionContext,
+  key: "progression:skillUnlock",
+  label: "Skill Progression Context",
+}>
+
+characterProgressionHook := <hook {
+  id: characterProgressionHook,
+  key: "unlock:fire",
+  direction: "out",
+}>
+
+skillUnlockHook := <hook {
+  id: skillUnlockHook,
+  key: "unlock:fire",
+  direction: "in",
+}>
+
+heroToGoblin := { hero : attacks : goblin }
+heroToFireball := { hero : canUnlock : fireball }
+
+// -----------------------------------------------------------------------------
+// @seed(graph)
+// -----------------------------------------------------------------------------
+
+characterGraph := @seed(graph) {
+  node: [
+    hero,
+    goblin,
+    characterProgressionHook,
+  ],
+
+  edge: [
+    heroToGoblin,
+  ],
+
+  state: {
+    hero.hp: 100,
+    goblin.hp: 40,
+    hero.selectedSkill: fireball,
+  },
+
+  meta: {
+    hero.role: actor,
+    goblin.role: target,
+  },
+
+  root: hero,
+}
+
+skillGraph := @seed(graph) {
+  node: [
+    fireball,
+    skillUnlockHook,
+  ],
+
+  edge: [],
+
+  state: {
+    fireball.unlocked: false,
+  },
+
+  meta: {
+    fireball.role: skill,
+  },
+
+  root: fireball,
+}
+
+// -----------------------------------------------------------------------------
+// <bridge> + @seed(network)
+// -----------------------------------------------------------------------------
+
+characterSkillBridge := <bridge {
+  id: characterSkillBridge,
+  from: characterGraph,
+  to: skillGraph,
+  context: progressionContext,
+  hooks: [
+    characterProgressionHook,
+    skillUnlockHook,
+  ],
+}>
+
+characterNetwork := @seed(network) {
+  graphs: [
+    characterGraph,
+    skillGraph,
+  ],
+
+  bridges: [
+    characterSkillBridge,
+  ],
+
+  contexts: [
+    progressionContext,
+  ],
+
+  hooks: [
+    characterProgressionHook,
+    skillUnlockHook,
+  ],
+
+  state: {
+    characterSkillBridge: active,
+  },
+
+  meta: {
+    purpose: "Connect character progression to skill unlocks.",
+  },
+
+  anchor: characterGraph,
+}
+
+// -----------------------------------------------------------------------------
+// @query(domain)
+// -----------------------------------------------------------------------------
+
+hasHero := @query(node) {
+  id: hero,
+  type: node,
+}
+
+hasAttackEdge := @query(edge) {
+  from: hero,
+  relation: attacks,
+  to: goblin,
+}
+
+isGoblinAlive := @query(state) {
+  target: goblin,
+  key: hp,
+  value: > 0,
+}
+
+heroRoleQuery := @query(meta) {
+  target: hero,
+  key: role,
+  value: actor,
+}
+
+characterGraphQuery := @query(graph) {
+  target: characterGraph,
+  node: [hero, goblin],
+  edge: [heroToGoblin],
+  root: hero,
+}
+
+characterNetworkQuery := @query(network) {
+  target: characterNetwork,
+  graphs: [characterGraph, skillGraph],
+  bridges: [characterSkillBridge],
+  contexts: [progressionContext],
+  hooks: [characterProgressionHook, skillUnlockHook],
+  anchor: characterGraph,
+}
+
+// -----------------------------------------------------------------------------
+// @match(domain)
+// -----------------------------------------------------------------------------
+
+matchedGraphNodes := @match(node) {
+  where: {
+    kind: character,
+  },
+}
+
+matchedNetworkBridges := @match(network) {
+  where: {
+    bridges.context: progressionContext,
+  },
+}
+
+matchedNetworkHooks := @match(network) {
+  where: {
+    hooks.key: "unlock:fire",
+  },
+}
+
+// -----------------------------------------------------------------------------
+// @traverse(domain)
+// -----------------------------------------------------------------------------
+
+graphTraversal := @traverse(graph) {
+  target: characterGraph,
+  from: hero,
+  to: goblin,
+  through: attacks,
+  depth: 3,
+  limit: 10,
+  rules: {
+    backtracking: false,
+    repeatNodes: false,
+    repeatEdges: false,
+  },
+  return: all,
+}
+
+networkTraversal := @traverse(network) {
+  target: characterNetwork,
+  from: characterGraph,
+  to: skillGraph,
+  through: characterSkillBridge,
+  depth: 2,
+  limit: 10,
+  rules: {
+    backtracking: false,
+    repeatGraphs: false,
+    repeatBridges: false,
+  },
+  return: all,
+}
+
+// -----------------------------------------------------------------------------
+// @derive(domain)
+// @compute is retired; helper functions live inside formula expressions.
+// -----------------------------------------------------------------------------
+
+nextGoblinHp := @derive(state) {
+  target: goblin,
+  from: [state],
+  formula: max(goblin.hp - 10, 0),
+}
+
+networkStatus := @derive(network) {
+  target: characterNetwork,
+  from: [state, topology],
+  formula: characterSkillBridge == active ? "connected" : "fragmented",
+}
+
+statusMessage := @derive(network) {
+  target: characterNetwork,
+  from: [state, topology],
+  formula: "Network status: " + networkStatus,
+}
+
+// -----------------------------------------------------------------------------
+// @project(domain)
+// -----------------------------------------------------------------------------
+
+projectCharacter := @project(graph) {
+  format: custom,
+  include: [
+    graph.nodes,
+    graph.edges,
+    graph.state,
+    graph.meta,
+    graph.root,
+  ],
+}
+
+projectNetworkTopology := @project(network) {
+  format: topology,
+}
+
+characterGraphView := characterGraph <> projectCharacter(characterGraph)
+characterNetworkView := characterNetwork <> projectNetworkTopology(characterNetwork)
+
+// -----------------------------------------------------------------------------
+// @action(domain)
+// Current parser support: action bodies are flow bodies. Configuration-style
+// action bodies are reserved for the follow-up action grammar cleanup.
+// -----------------------------------------------------------------------------
+
+unlockSkill := @action(graph) {
+  ?> @query(state) {
+    target: fireball,
+    key: unlocked,
+    value: false,
+  }
+
+  -> @update(state) {
+    fireball.unlocked = true
+  }
+}
+
+expandCharacterNetwork := @action(network) {
+  ?> @query(network) {
+    target: characterNetwork,
+    graphs: [characterGraph],
+  }
+
+  -> @graft(network) {
+    bridges: [characterSkillBridge],
+    contexts: [progressionContext],
+    hooks: [characterProgressionHook, skillUnlockHook],
+  }
+
+  -> @update(state) {
+    characterSkillBridge = active
+  }
+}
+
+// -----------------------------------------------------------------------------
+// @when(domain)
+// Canonical listener shape uses condition/action/fallback/projection.
+// -----------------------------------------------------------------------------
+
+bridgeActiveListener := @when(network) {
+  target: characterNetwork,
+
+  condition: @query(state) {
+    target: characterNetwork,
+    key: characterSkillBridge,
+    value: inactive,
+  },
+
+  action: {
+    -> expandCharacterNetwork(characterNetwork)
+  },
+
+  fallback: {
+    -> expandCharacterNetwork(characterNetwork)
+  },
+
+  projection: projectNetworkTopology(characterNetwork),
+}
+
+// -----------------------------------------------------------------------------
+// @repeat(domain)
+// Canonical repeat shape uses domain, maxIterations, while, over, and action.
+// -----------------------------------------------------------------------------
+
+repeatedCharacterNetwork := characterNetwork
+  -> @repeat(network) {
+    target: characterNetwork,
+    maxIterations: 1,
+
+    while: @query(network) {
+      target: characterNetwork,
+      contexts: [progressionContext],
+    },
+
+    over: @match(network) {
+      target: characterNetwork,
+      where: {
+        bridges: characterSkillBridge,
+      },
+    },
+
+    action: {
+      -> expandCharacterNetwork(characterNetwork)
+    }
+  }
+
+// -----------------------------------------------------------------------------
+// Flow operators + mutation directives
+// -----------------------------------------------------------------------------
+
+updatedCharacterNetwork := characterNetwork
+  ?> @query(network) {
+    target: characterNetwork,
+    bridges: [characterSkillBridge],
+  }
+
+  -> @graft(network) {
+    graphs: [skillGraph],
+    bridges: [characterSkillBridge],
+    contexts: [progressionContext],
+    hooks: [characterProgressionHook, skillUnlockHook],
+  }
+
+  -> @update(network) {
+    anchor = skillGraph
+  }
+
+  -> @update(state) {
+    characterSkillBridge = active
+  }
+
+  -> @graft(meta) {
+    lastMutation: "Expanded network topology."
+  }
+
+  <> projectNetworkTopology(characterNetwork)
+
+// -----------------------------------------------------------------------------
+// @prune(network)
+// Removes topology and directly orphaned bridge-owned hooks/contexts when safe.
+// -----------------------------------------------------------------------------
+
+prunedCharacterNetwork := characterNetwork
+  ?> @query(network) {
+    target: characterNetwork,
+    bridges: [characterSkillBridge],
+  }
+
+  -> @prune(network) {
+    bridges: [characterSkillBridge],
+  }
+
+// -----------------------------------------------------------------------------
+// @inject(hookRef, "source.ext")
+// Irregular interop boundary. This is shown as syntax only because run-module
+// does not provide an injection hook/file for this smoke test.
+//
+// injectedCharacterNetwork := characterNetwork
+//   <- @inject(networkGeneratorHook, "network-generator.py")
+
+// -----------------------------------------------------------------------------
+// Interrogative projection directives
+// These stay irregular projection-flow lenses.
+// -----------------------------------------------------------------------------
+
+explainNetworkResult := characterNetwork
+  -> expandCharacterNetwork(characterNetwork)
+  <> projectNetworkTopology(characterNetwork)
+  <> @who() {
+    include: [actor, target, affected]
+  }
+  <> @what() {
+    include: [actions, changes]
+  }
+  <> @why() {
+    include: [queries, gates, triggers]
+  }
+  <> @how() {
+    include: [flow, actions, mutations, injections, projections],
+    depth: full,
+  }

@@ -1,0 +1,305 @@
+import { describe, expect, it } from "vitest";
+
+import { runV3Source } from "../src/runtime/index";
+
+const fixture = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1"
+  }>
+
+  node2 := <node {
+    id: node2,
+    label: "Node 2"
+  }>
+
+  edge1 := { node1 : connectedTo : node2 }
+
+  damage := 10
+
+  graph1 := @seed(graph) {
+    node: [node1, node2],
+    edge: [edge1],
+    state: {
+      node1.hp: 40,
+      node1.trust: 60
+    },
+    meta: {
+      node1.role: actor
+    },
+    root: node1
+  }
+`;
+
+function runFlow(flow: string) {
+  return runV3Source(`${fixture}\n${flow}`);
+}
+
+describe("TAT v3 runtime mutation flow", () => {
+  it("flow source graph binding executes", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @update(state) {
+          node1.hp = 30
+        }
+    `);
+
+    expect(result.status).toBe("success");
+    expect(result.bindings.result).toMatchObject({ type: "flowResult", value: { graph: "graph1" } });
+  });
+
+  it("update state updates existing state", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @update(state) {
+          node1.hp = @derive(value) { target: value, formula: node1.hp - damage }
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(30);
+  });
+
+  it("update meta updates existing meta", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @update(meta) {
+          node1.role = ally
+        }
+    `);
+
+    expect(result.graphs.graph1.meta.node1.role).toBe("ally");
+  });
+
+  it("update node updates node data", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @update(node) {
+          node1.label = "Updated"
+        }
+    `);
+
+    expect(result.graphs.graph1.nodes.node1.data.label).toBe("Updated");
+  });
+
+  it("graft node adds node and graph-local binding", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @graft(node) {
+          node3: <node { id: node3, label: "Node 3" }>
+        }
+    `);
+
+    expect(result.graphs.graph1.nodes.node3).toMatchObject({ id: "node3" });
+    expect(result.graphs.graph1.localBindings.node3).toMatchObject({ type: "nodeDefinition" });
+  });
+
+  it("graft edge adds edge and graph-local binding", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @graft(edge) {
+          edge2: { node1 : trusts : node2 }
+        }
+    `);
+
+    expect(result.graphs.graph1.edges.edge2).toMatchObject({
+      from: "node1",
+      relation: "trusts",
+      to: "node2",
+    });
+    expect(result.graphs.graph1.localBindings.edge2).toMatchObject({ type: "edgeDefinition" });
+  });
+
+  it("graft state adds state value", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @graft(state) {
+          node1.poisoned: true
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.poisoned).toBe(true);
+  });
+
+  it("graft meta adds meta value", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @graft(meta) {
+          node1.affinity: ally
+        }
+    `);
+
+    expect(result.graphs.graph1.meta.node1.affinity).toBe("ally");
+  });
+
+  it("prune node removes node, connected edges, state, and meta", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @prune(node) {
+          node1
+        }
+    `);
+
+    expect(result.graphs.graph1.nodes.node1).toBeUndefined();
+    expect(result.graphs.graph1.edges.edge1).toBeUndefined();
+    expect(result.graphs.graph1.state.node1).toBeUndefined();
+    expect(result.graphs.graph1.meta.node1).toBeUndefined();
+  });
+
+  it("prune edge removes edges by relation", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @prune(edge) {
+          relation: connectedTo
+        }
+    `);
+
+    expect(result.graphs.graph1.edges.edge1).toBeUndefined();
+  });
+
+  it("prune state removes state", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @prune(state) {
+          node1.hp
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBeUndefined();
+  });
+
+  it("prune meta removes meta", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @prune(meta) {
+          node1.role
+        }
+    `);
+
+    expect(result.graphs.graph1.meta.node1.role).toBeUndefined();
+  });
+
+  it("mutation events are recorded globally and in graph history", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @update(state) {
+          node1.hp = 30
+        }
+    `);
+
+    expect(result.events).toContainEqual(
+      expect.objectContaining({
+        type: "mutation",
+        directive: "update",
+        domain: "state",
+        changes: [expect.objectContaining({ path: "node1.hp", from: 40, to: 30, operation: "update" })],
+      }),
+    );
+    expect(result.graphs.graph1.history.some((event) => event.type === "mutation")).toBe(true);
+  });
+
+  it("passing conditional gate executes following mutation segment", () => {
+    const result = runFlow(`
+      result := graph1
+        ?> @query(state) {
+          node: node1,
+          key: trust,
+          value: > 50
+        }
+        -> @update(state) {
+          node1.hp = 30
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(30);
+    expect(result.events).toContainEqual(expect.objectContaining({ type: "gate", operator: "?>", passed: true }));
+  });
+
+  it("failing conditional gate skips following mutation segment until next gate", () => {
+    const result = runFlow(`
+      result := graph1
+        ?> @query(state) {
+          node: node1,
+          key: trust,
+          value: > 90
+        }
+        -> @update(state) {
+          node1.hp = 30
+        }
+        ?> @query(state) {
+          node: node1,
+          key: trust,
+          value: > 50
+        }
+        -> @update(state) {
+          node1.hp = 20
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(20);
+  });
+
+  it("negated gate executes when condition is false", () => {
+    const result = runFlow(`
+      result := graph1
+        !> @query(state) {
+          node: node1,
+          key: trust,
+          value: > 90
+        }
+        -> @update(state) {
+          node1.hp = 25
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(25);
+  });
+
+  it("fallback gate executes when previous gate chain did not execute", () => {
+    const result = runFlow(`
+      result := graph1
+        ?> @query(state) {
+          node: node1,
+          key: trust,
+          value: > 90
+        }
+        -> @update(state) {
+          node1.hp = 30
+        }
+        :>
+        -> @update(state) {
+          node1.hp = 15
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(15);
+  });
+
+  it("top-level flow result binding is stored", () => {
+    const result = runFlow(`
+      result := graph1
+        -> @update(state) {
+          node1.hp = 30
+        }
+    `);
+
+    expect(result.bindings.result).toMatchObject({
+      type: "flowResult",
+      value: {
+        graph: "graph1",
+        events: [expect.objectContaining({ type: "mutation" })],
+      },
+    });
+  });
+
+  it("unknown action invocation returns not-yet-implemented diagnostic", () => {
+    const result = runFlow(`
+      result := graph1
+        -> missingAction(node1)
+    `);
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      "Action invocation runtime is not implemented yet.",
+    );
+  });
+});

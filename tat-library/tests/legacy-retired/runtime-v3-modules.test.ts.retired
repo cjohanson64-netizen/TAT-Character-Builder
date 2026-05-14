@@ -1,0 +1,294 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { parseV3Program } from "../src/parser/index";
+import { runV3Source, type V3ModuleResolver } from "../src/runtime/index";
+
+function resolverFor(modules: Record<string, string>, readSpy?: (filePath: string) => void): V3ModuleResolver {
+  return {
+    resolvePath: (importPath) => (importPath.startsWith("./") ? `/${importPath.slice(2)}` : importPath),
+    readModule: (filePath) => {
+      readSpy?.(filePath);
+      const source = modules[filePath];
+      if (!source) throw new Error(`Unknown module path "${filePath}".`);
+      return source;
+    },
+  };
+}
+
+const sharedModule = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1"
+  }>
+
+  node2 := <node {
+    id: node2,
+    label: "Node 2"
+  }>
+
+  edge1 := { node1 : connectedTo : node2 }
+
+  heal := @action(target, amount) {
+    -> @update(state) {
+      target.hp = @derive(value) { target: value, formula: target.hp + amount }
+    }
+  }
+
+  battleCard := @project(node) {
+    format: custom,
+    include: [node.hp, node.label]
+  }
+
+  export { node1, node2, edge1, heal, battleCard }
+`;
+
+describe("TAT v3 modules", () => {
+  it("parses import and export statements", () => {
+    const program = parseV3Program(`
+      import { node1, heal } from "./shared.tat"
+      export { node1 }
+    `);
+
+    expect(program.body[0]).toMatchObject({
+      kind: "Import",
+      imports: [{ name: "node1" }, { name: "heal" }],
+      from: { value: "./shared.tat" },
+    });
+    expect(program.body[1]).toMatchObject({
+      kind: "Export",
+      names: [{ name: "node1" }],
+    });
+  });
+
+  it("module exports node binding", () => {
+    const result = runV3Source(sharedModule);
+
+    expect(result.exports.node1).toMatchObject({ type: "nodeDefinition", id: "node1" });
+  });
+
+  it("current module imports exported node", () => {
+    const modules = { "/shared.tat": sharedModule };
+    const result = runV3Source(`
+      import { node1 } from "./shared.tat"
+      export { node1 }
+    `, { moduleResolver: resolverFor(modules), currentFile: "/main.tat" });
+
+    expect(result.bindings.node1).toMatchObject({ type: "nodeDefinition" });
+    expect(result.exports.node1).toMatchObject({ type: "nodeDefinition" });
+  });
+
+  it("imported node can be used in seed", () => {
+    const result = runV3Source(`
+      import { node1 } from "./shared.tat"
+      graph1 := @seed(graph) {
+        node: [node1],
+        root: node1
+      }
+    `, { moduleResolver: resolverFor({ "/shared.tat": sharedModule }), currentFile: "/main.tat" });
+
+    expect(result.graphs.graph1.nodes.node1).toMatchObject({ id: "node1" });
+  });
+
+  it("imported edge can be used in seed", () => {
+    const result = runV3Source(`
+      import { node1, node2, edge1 } from "./shared.tat"
+      graph1 := @seed(graph) {
+        node: [node1, node2],
+        edge: [edge1],
+        root: node1
+      }
+    `, { moduleResolver: resolverFor({ "/shared.tat": sharedModule }), currentFile: "/main.tat" });
+
+    expect(result.graphs.graph1.edges.edge1).toMatchObject({
+      from: "node1",
+      relation: "connectedTo",
+      to: "node2",
+    });
+  });
+
+  it("imported action can be invoked in current module", () => {
+    const result = runV3Source(`
+      import { node1, heal } from "./shared.tat"
+      graph1 := @seed(graph) {
+        node: [node1],
+        state: { node1.hp: 40 },
+        root: node1
+      }
+      view := graph1 -> heal(node1, 10)
+    `, { moduleResolver: resolverFor({ "/shared.tat": sharedModule }), currentFile: "/main.tat" });
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(50);
+  });
+
+  it("imported projection can be used in projection flow", () => {
+    const result = runV3Source(`
+      import { node1, battleCard } from "./shared.tat"
+      graph1 := @seed(graph) {
+        node: [node1],
+        state: { node1.hp: 40 },
+        root: node1
+      }
+      view := graph1 <> battleCard(node1)
+    `, { moduleResolver: resolverFor({ "/shared.tat": sharedModule }), currentFile: "/main.tat" });
+
+    expect(result.projections.project).toMatchObject({
+      kind: "project",
+      data: { "node.hp": 40, "node.label": "Node 1" },
+    });
+  });
+
+  it("imported graph binding can be referenced", () => {
+    const modules = {
+      "/graph.tat": `
+        node1 := <node { id: node1 }>
+        graphShared := @seed(graph) {
+          node: [node1],
+          root: node1
+        }
+        export { graphShared }
+      `,
+    };
+    const result = runV3Source(`
+      import { graphShared } from "./graph.tat"
+      view := graphShared <> @what()
+    `, { moduleResolver: resolverFor(modules), currentFile: "/main.tat" });
+
+    expect(result.bindings.graphShared).toMatchObject({ type: "graph", id: "graphShared" });
+    expect(result.bindings.view).toMatchObject({ type: "flowResult", value: { graph: "graphShared" } });
+  });
+
+  it("current module exports its own binding", () => {
+    const result = runV3Source(`
+      node3 := <node { id: node3 }>
+      export { node3 }
+    `);
+
+    expect(result.exports.node3).toMatchObject({ type: "nodeDefinition", id: "node3" });
+  });
+
+  it("missing export reports diagnostic", () => {
+    const result = runV3Source(`
+      import { missingThing } from "./shared.tat"
+    `, { moduleResolver: resolverFor({ "/shared.tat": sharedModule }), currentFile: "/main.tat" });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Module "./shared.tat" does not export "missingThing".',
+    );
+  });
+
+  it("unknown module path reports diagnostic", () => {
+    const result = runV3Source(`
+      import { node1 } from "./missing.tat"
+    `, { moduleResolver: resolverFor({}), currentFile: "/main.tat" });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Unknown module path "/missing.tat".',
+    );
+  });
+
+  it("duplicate local and imported binding reports diagnostic", () => {
+    const result = runV3Source(`
+      import { node1 } from "./shared.tat"
+      node1 := <node { id: localNode }>
+    `, { moduleResolver: resolverFor({ "/shared.tat": sharedModule }), currentFile: "/main.tat" });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Imported binding "node1" conflicts with local binding.',
+    );
+  });
+
+  it("circular import reports diagnostic", () => {
+    const modules = {
+      "/a.tat": `import { bNode } from "./b.tat"\naNode := <node { id: aNode }>\nexport { aNode }`,
+      "/b.tat": `import { aNode } from "./a.tat"\nbNode := <node { id: bNode }>\nexport { bNode }`,
+    };
+    const result = runV3Source(modules["/a.tat"], {
+      moduleResolver: resolverFor(modules),
+      currentFile: "/a.tat",
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      "Circular TAT import detected: /a.tat -> /b.tat -> /a.tat.",
+    );
+  });
+
+  it("module cache prevents duplicate reads", () => {
+    const readSpy = vi.fn();
+    const result = runV3Source(`
+      import { node1 } from "./shared.tat"
+      import { node2 } from "./shared.tat"
+      graph1 := @seed(graph) {
+        node: [node1, node2],
+        root: node1
+      }
+    `, {
+      moduleResolver: resolverFor({ "/shared.tat": sharedModule }, readSpy),
+      currentFile: "/main.tat",
+    });
+
+    expect(result.status).toBe("success");
+    expect(readSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("imported module diagnostics propagate", () => {
+    const result = runV3Source(`
+      import { node1 } from "./bad.tat"
+    `, {
+      moduleResolver: resolverFor({
+        "/bad.tat": `
+          node1 := <node { id: node1 }>
+          node1 := <node { id: node1b }>
+          export { node1 }
+        `,
+      }),
+      currentFile: "/main.tat",
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Duplicate semantic binding "node1".',
+    );
+  });
+
+  it("combined imported module fixture mutates and projects", () => {
+    const modules = {
+      "/shared.tat": sharedModule,
+      "/main.tat": `
+        import { node1, node2, edge1, heal, battleCard } from "./shared.tat"
+
+        graph1 := @seed(graph) {
+          node: [node1, node2],
+          edge: [edge1],
+          state: {
+            node1.hp: 40
+          },
+          root: node1
+        }
+
+        view := graph1
+          -> heal(node1, 10)
+          <> battleCard(node1)
+          <> @what()
+
+        export { graph1, view }
+      `,
+    };
+    const result = runV3Source(modules["/main.tat"], {
+      moduleResolver: resolverFor(modules),
+      currentFile: "/main.tat",
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.graphs.graph1.state.node1.hp).toBe(50);
+    expect(result.bindings.view).toMatchObject({
+      type: "flowResult",
+      value: { projections: { project: { kind: "project" }, what: { kind: "what" } } },
+    });
+    expect(result.exports.graph1).toMatchObject({ type: "graph" });
+    expect(result.exports.view).toMatchObject({ type: "flowResult" });
+  });
+});

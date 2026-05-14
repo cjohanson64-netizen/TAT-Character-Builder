@@ -1,0 +1,116 @@
+import { describe, expect, it } from "vitest";
+
+import { runV3Source } from "../src/runtime/index";
+
+const networkFixture = `
+  melodyRoot := <node { id: melodyRoot, }>
+  harmonyRoot := <node { id: harmonyRoot, }>
+  tonalCenter := <context { id: tonalCenter, key: "C-major", }>
+  melodyHook := <hook { id: melodyHook, key: "pitch:C", direction: "out", }>
+  harmonyHook := <hook { id: harmonyHook, key: "pitch:C", direction: "in", }>
+
+  melodyGraph := @seed(graph) {
+    node: [melodyRoot],
+    edge: [],
+    state: {},
+    meta: {},
+    root: melodyRoot,
+  }
+
+  harmonyGraph := @seed(graph) {
+    node: [harmonyRoot],
+    edge: [],
+    state: {},
+    meta: {},
+    root: harmonyRoot,
+  }
+
+  melodyHarmonyBridge := <bridge {
+    id: melodyHarmonyBridge,
+    from: melodyGraph,
+    to: harmonyGraph,
+    context: tonalCenter,
+    hooks: [melodyHook, harmonyHook],
+  }>
+
+  musicNetwork := @seed(network) {
+    graphs: [melodyGraph, harmonyGraph],
+    bridges: [melodyHarmonyBridge],
+    contexts: [tonalCenter],
+    hooks: [melodyHook, harmonyHook],
+    state: {
+      melodyHarmonyBridge: active,
+    },
+    meta: {
+      purpose: "Connect melody and harmony.",
+    },
+    anchor: melodyGraph,
+  }
+
+  hasBridge := @query(network) {
+    target: musicNetwork,
+    bridges: [melodyHarmonyBridge],
+  }
+
+  networkPath := @traverse(network) {
+    target: musicNetwork,
+    from: melodyGraph,
+    to: harmonyGraph,
+    through: melodyHarmonyBridge,
+    depth: 2,
+    limit: 10,
+    return: all,
+  }
+
+  projectNetwork := @project(network) {
+    format: topology,
+  }
+
+  networkView := musicNetwork <> projectNetwork(musicNetwork)
+`;
+
+function readValue(result: ReturnType<typeof runV3Source>, name: string): any {
+  return result.bindings[name]?.type === "read" ? result.bindings[name].value : undefined;
+}
+
+describe("TAT v3.1 network runtime", () => {
+  it("seeds networks with graph, bridge, context, hook registries", () => {
+    const result = runV3Source(networkFixture);
+    expect(result.status).toBe("success");
+    expect(result.networks.musicNetwork).toMatchObject({
+      type: "network",
+      anchor: "melodyGraph",
+      graphs: ["melodyGraph", "harmonyGraph"],
+      bridges: ["melodyHarmonyBridge"],
+      contexts: ["tonalCenter"],
+      hooks: ["melodyHook", "harmonyHook"],
+    });
+  });
+
+  it("queries network topology", () => {
+    const query = readValue(runV3Source(networkFixture), "hasBridge");
+    expect(query.result).toBe(true);
+  });
+
+  it("traverses graph-to-graph paths through bridges", () => {
+    const traversal = readValue(runV3Source(networkFixture), "networkPath");
+    expect(traversal.has).toBe(true);
+    expect(traversal.paths[0]).toEqual({
+      nodes: ["melodyGraph", "harmonyGraph"],
+      edges: ["melodyHarmonyBridge"],
+    });
+  });
+
+  it("projects network topology without flattening graphs", () => {
+    const result = runV3Source(networkFixture);
+    expect(result.projections.project).toMatchObject({
+      format: "topology",
+      target: "musicNetwork",
+      data: {
+        anchor: "melodyGraph",
+        contexts: ["tonalCenter"],
+        hooks: ["melodyHook", "harmonyHook"],
+      },
+    });
+  });
+});

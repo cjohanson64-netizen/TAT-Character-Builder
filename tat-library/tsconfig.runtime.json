@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "declaration": false,
+    "noEmit": false,
+    "rootDir": "."
+  },
+  "include": [
+    "ast/**/*.ts",
+    "lexer/**/*.ts",
+    "parser/**/*.ts",
+    "runtime/**/*.ts"
+  ]
+}

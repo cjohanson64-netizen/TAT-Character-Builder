@@ -1,0 +1,205 @@
+// -----------------------------------------------------------------------------
+// character.graph.tat
+// Character + Skill Builder
+//
+// Pass 3 goal:
+// Define the character graph as its own semantic domain.
+//
+// This file does not store injected character values yet.
+// This file does not connect to the stat graph yet.
+// It only defines the core semantic structure of a character.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Character root
+// -----------------------------------------------------------------------------
+
+characterRoot := <node {
+  id: characterRoot,
+  label: "Character",
+  kind: characterDomain,
+  description: "Root node for a playable character.",
+}>
+
+// -----------------------------------------------------------------------------
+// Character domain nodes
+// -----------------------------------------------------------------------------
+
+characterIdentity := <node {
+  id: characterIdentity,
+  label: "Character Identity",
+  kind: characterFacet,
+  category: identity,
+  description: "Represents character-facing identity details such as name, archetype, and role.",
+}>
+
+characterStats := <node {
+  id: characterStats,
+  label: "Character Stats",
+  kind: characterFacet,
+  category: stats,
+  description: "Represents the character's owned stat profile.",
+}>
+
+characterProgression := <node {
+  id: characterProgression,
+  label: "Character Progression",
+  kind: characterFacet,
+  category: progression,
+  description: "Represents level, experience, unlocks, and growth state.",
+}>
+
+characterCombatProfile := <node {
+  id: characterCombatProfile,
+  label: "Character Combat Profile",
+  kind: characterFacet,
+  category: combat,
+  description: "Represents how the character participates in combat.",
+}>
+
+characterSkillProfile := <node {
+  id: characterSkillProfile,
+  label: "Character Skill Profile",
+  kind: characterFacet,
+  category: skills,
+  description: "Represents the character's unlocked and unlockable skills.",
+}>
+
+// -----------------------------------------------------------------------------
+// Character status nodes
+// These are semantic states TAT can use later for projections/rules.
+// -----------------------------------------------------------------------------
+
+untrainedCharacter := <node {
+  id: untrainedCharacter,
+  label: "Untrained Character",
+  kind: characterState,
+  category: training,
+  description: "Represents a character before meaningful stat or skill growth.",
+}>
+
+developingCharacter := <node {
+  id: developingCharacter,
+  label: "Developing Character",
+  kind: characterState,
+  category: training,
+  description: "Represents a character with early stat or skill growth.",
+}>
+
+specializedCharacter := <node {
+  id: specializedCharacter,
+  label: "Specialized Character",
+  kind: characterState,
+  category: training,
+  description: "Represents a character whose stats or skills imply a clear build direction.",
+}>
+
+// -----------------------------------------------------------------------------
+// Character facet edges
+// -----------------------------------------------------------------------------
+
+characterHasIdentity := { characterRoot : hasFacet : characterIdentity }
+
+characterHasStats := { characterRoot : hasFacet : characterStats }
+
+characterHasProgression := { characterRoot : hasFacet : characterProgression }
+
+characterHasCombatProfile := { characterRoot : hasFacet : characterCombatProfile }
+
+characterHasSkillProfile := { characterRoot : hasFacet : characterSkillProfile }
+
+// -----------------------------------------------------------------------------
+// Character progression/facet relationship edges
+// -----------------------------------------------------------------------------
+
+characterStatsInfluenceCombatProfile := { characterStats : influences : characterCombatProfile }
+
+characterStatsInfluenceSkillProfile := { characterStats : influences : characterSkillProfile }
+
+characterProgressionInfluencesSkillProfile := { characterProgression : influences : characterSkillProfile }
+
+characterSkillProfileInfluencesCombatProfile := { characterSkillProfile : influences : characterCombatProfile }
+
+characterIdentityDescribesCharacter := { characterIdentity : describes : characterRoot }
+
+// -----------------------------------------------------------------------------
+// Character state progression edges
+// -----------------------------------------------------------------------------
+
+untrainedProgressesToDeveloping := { untrainedCharacter : progressesTo : developingCharacter }
+
+developingProgressesToSpecialized := { developingCharacter : progressesTo : specializedCharacter }
+
+characterRootCanBeUntrained := { characterRoot : canHaveState : untrainedCharacter }
+
+characterRootCanBeDeveloping := { characterRoot : canHaveState : developingCharacter }
+
+characterRootCanBeSpecialized := { characterRoot : canHaveState : specializedCharacter }
+
+// -----------------------------------------------------------------------------
+// Character graph
+// -----------------------------------------------------------------------------
+
+characterGraph := @seed(graph) {
+  node: [
+    characterRoot,
+
+    characterIdentity,
+    characterStats,
+    characterProgression,
+    characterCombatProfile,
+    characterSkillProfile,
+
+    untrainedCharacter,
+    developingCharacter,
+    specializedCharacter,
+  ],
+
+  edge: [
+    characterHasIdentity,
+    characterHasStats,
+    characterHasProgression,
+    characterHasCombatProfile,
+    characterHasSkillProfile,
+
+    characterStatsInfluenceCombatProfile,
+    characterStatsInfluenceSkillProfile,
+    characterProgressionInfluencesSkillProfile,
+    characterSkillProfileInfluencesCombatProfile,
+    characterIdentityDescribesCharacter,
+
+    untrainedProgressesToDeveloping,
+    developingProgressesToSpecialized,
+    characterRootCanBeUntrained,
+    characterRootCanBeDeveloping,
+    characterRootCanBeSpecialized,
+  ],
+
+  meta: {
+    purpose: "Define the core semantic structure of a playable character.",
+    owner: tat,
+    dataBoundary: "No character save data or stat values are stored here. Python injects character data later.",
+  },
+
+  root: characterRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  characterRoot,
+
+  characterIdentity,
+  characterStats,
+  characterProgression,
+  characterCombatProfile,
+  characterSkillProfile,
+
+  untrainedCharacter,
+  developingCharacter,
+  specializedCharacter,
+
+  characterGraph,
+}

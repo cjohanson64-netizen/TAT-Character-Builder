@@ -1,0 +1,582 @@
+// -----------------------------------------------------------------------------
+// character-builder-unlock-interpretation.tat
+// Character + Skill Builder
+//
+// Pass 12 goal:
+// Interpret sample runtime facts into skill unlock statuses.
+//
+// This file does not mutate Python data.
+// This file does not persist unlocked skills.
+// This file does not run a real comparison engine yet.
+//
+// It proves that TAT can represent interpreted runtime meaning:
+//
+// - Heavy Strike is unlocked because Python says it is acquired.
+// - Power Swing is locked because Strength 8 is below required Strength 12.
+// - Shield Guard is locked because Defense 6 is below required Defense 8.
+// - Quick Step is locked because Speed 7 is below required Speed 8.
+// - Arcane Bolt is locked because Intelligence 4 is below required Intelligence 8.
+//
+// This is deterministic authored interpretation for the Pass 11 smoke instance.
+// Later, this can become dynamic interpretation driven by @derive/@query rules.
+// -----------------------------------------------------------------------------
+
+import {
+  runtimeSmokeGraph,
+
+  sampleCharacter,
+  sampleStrengthValue,
+  sampleDefenseValue,
+  sampleIntelligenceValue,
+  sampleSpeedValue,
+  sampleUnlockedHeavyStrike,
+} from "./character-builder-runtime-smoke.tat"
+
+import {
+  heavyStrike,
+  powerSwing,
+  shieldGuard,
+  arcaneBolt,
+  quickStep,
+
+  locked,
+  unlocked,
+
+  requirementMet,
+  requirementUnmet,
+  blockedByRequirement,
+} from "../character-builder.root.tat"
+
+import {
+  heavyStrikeStrengthRequirement,
+  powerSwingStrengthRequirement,
+  powerSwingHeavyStrikeRequirement,
+  shieldGuardDefenseRequirement,
+  arcaneBoltIntelligenceRequirement,
+  quickStepSpeedRequirement,
+} from "../modules/unlock.rules.tat"
+
+// -----------------------------------------------------------------------------
+// Unlock interpretation root
+// -----------------------------------------------------------------------------
+
+unlockInterpretationRoot := <node {
+  id: unlockInterpretationRoot,
+  label: "Runtime Unlock Interpretation",
+  kind: interpretationRoot,
+  description: "Root node for interpreting sample runtime facts into skill unlock statuses.",
+}>
+
+// -----------------------------------------------------------------------------
+// Skill status interpretation nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusInterpretation := <node {
+  id: heavyStrikeStatusInterpretation,
+  label: "Heavy Strike Status Interpretation",
+  kind: skillStatusInterpretation,
+  skill: heavyStrike,
+  status: unlocked,
+  description: "Heavy Strike is unlocked because the sample runtime facts include it as an acquired skill.",
+}>
+
+powerSwingStatusInterpretation := <node {
+  id: powerSwingStatusInterpretation,
+  label: "Power Swing Status Interpretation",
+  kind: skillStatusInterpretation,
+  skill: powerSwing,
+  status: locked,
+  description: "Power Swing is locked because Strength 8 does not meet the required Strength 12.",
+}>
+
+shieldGuardStatusInterpretation := <node {
+  id: shieldGuardStatusInterpretation,
+  label: "Shield Guard Status Interpretation",
+  kind: skillStatusInterpretation,
+  skill: shieldGuard,
+  status: locked,
+  description: "Shield Guard is locked because Defense 6 does not meet the required Defense 8.",
+}>
+
+arcaneBoltStatusInterpretation := <node {
+  id: arcaneBoltStatusInterpretation,
+  label: "Arcane Bolt Status Interpretation",
+  kind: skillStatusInterpretation,
+  skill: arcaneBolt,
+  status: locked,
+  description: "Arcane Bolt is locked because Intelligence 4 does not meet the required Intelligence 8.",
+}>
+
+quickStepStatusInterpretation := <node {
+  id: quickStepStatusInterpretation,
+  label: "Quick Step Status Interpretation",
+  kind: skillStatusInterpretation,
+  skill: quickStep,
+  status: locked,
+  description: "Quick Step is locked because Speed 7 does not meet the required Speed 8.",
+}>
+
+// -----------------------------------------------------------------------------
+// Requirement interpretation nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeAcquiredRequirementMet := <node {
+  id: heavyStrikeAcquiredRequirementMet,
+  label: "Heavy Strike Acquired Requirement Met",
+  kind: requirementInterpretation,
+  requirement: heavyStrikeStrengthRequirement,
+  result: requirementMet,
+  actualValue: 8,
+  requiredValue: 8,
+  description: "Strength 8 meets Heavy Strike's Strength 8 requirement, and Heavy Strike is already acquired.",
+}>
+
+powerSwingStrengthRequirementUnmet := <node {
+  id: powerSwingStrengthRequirementUnmet,
+  label: "Power Swing Strength Requirement Unmet",
+  kind: requirementInterpretation,
+  requirement: powerSwingStrengthRequirement,
+  result: requirementUnmet,
+  actualValue: 8,
+  requiredValue: 12,
+  description: "Strength 8 does not meet Power Swing's Strength 12 requirement.",
+}>
+
+powerSwingDependencyRequirementMet := <node {
+  id: powerSwingDependencyRequirementMet,
+  label: "Power Swing Dependency Requirement Met",
+  kind: requirementInterpretation,
+  requirement: powerSwingHeavyStrikeRequirement,
+  result: requirementMet,
+  prerequisiteSkill: heavyStrike,
+  description: "Power Swing's Heavy Strike dependency is met because Heavy Strike is acquired.",
+}>
+
+shieldGuardDefenseRequirementUnmet := <node {
+  id: shieldGuardDefenseRequirementUnmet,
+  label: "Shield Guard Defense Requirement Unmet",
+  kind: requirementInterpretation,
+  requirement: shieldGuardDefenseRequirement,
+  result: requirementUnmet,
+  actualValue: 6,
+  requiredValue: 8,
+  description: "Defense 6 does not meet Shield Guard's Defense 8 requirement.",
+}>
+
+arcaneBoltIntelligenceRequirementUnmet := <node {
+  id: arcaneBoltIntelligenceRequirementUnmet,
+  label: "Arcane Bolt Intelligence Requirement Unmet",
+  kind: requirementInterpretation,
+  requirement: arcaneBoltIntelligenceRequirement,
+  result: requirementUnmet,
+  actualValue: 4,
+  requiredValue: 8,
+  description: "Intelligence 4 does not meet Arcane Bolt's Intelligence 8 requirement.",
+}>
+
+quickStepSpeedRequirementUnmet := <node {
+  id: quickStepSpeedRequirementUnmet,
+  label: "Quick Step Speed Requirement Unmet",
+  kind: requirementInterpretation,
+  requirement: quickStepSpeedRequirement,
+  result: requirementUnmet,
+  actualValue: 7,
+  requiredValue: 8,
+  description: "Speed 7 does not meet Quick Step's Speed 8 requirement.",
+}>
+
+// -----------------------------------------------------------------------------
+// Explanation nodes
+// -----------------------------------------------------------------------------
+
+heavyStrikeExplanation := <node {
+  id: heavyStrikeExplanation,
+  label: "Heavy Strike Explanation",
+  kind: unlockExplanation,
+  targetSkill: heavyStrike,
+  status: unlocked,
+  summary: "Heavy Strike is already unlocked.",
+  description: "Python supplied Heavy Strike as an acquired skill, so TAT interprets its status as unlocked.",
+}>
+
+powerSwingExplanation := <node {
+  id: powerSwingExplanation,
+  label: "Power Swing Explanation",
+  kind: unlockExplanation,
+  targetSkill: powerSwing,
+  status: locked,
+  summary: "Power Swing is locked because Strength is too low.",
+  description: "Power Swing requires Strength 12 and Heavy Strike unlocked. Heavy Strike is unlocked, but Strength is only 8.",
+}>
+
+shieldGuardExplanation := <node {
+  id: shieldGuardExplanation,
+  label: "Shield Guard Explanation",
+  kind: unlockExplanation,
+  targetSkill: shieldGuard,
+  status: locked,
+  summary: "Shield Guard is locked because Defense is too low.",
+  description: "Shield Guard requires Defense 8, but the sample character has Defense 6.",
+}>
+
+arcaneBoltExplanation := <node {
+  id: arcaneBoltExplanation,
+  label: "Arcane Bolt Explanation",
+  kind: unlockExplanation,
+  targetSkill: arcaneBolt,
+  status: locked,
+  summary: "Arcane Bolt is locked because Intelligence is too low.",
+  description: "Arcane Bolt requires Intelligence 8, but the sample character has Intelligence 4.",
+}>
+
+quickStepExplanation := <node {
+  id: quickStepExplanation,
+  label: "Quick Step Explanation",
+  kind: unlockExplanation,
+  targetSkill: quickStep,
+  status: locked,
+  summary: "Quick Step is locked because Speed is too low.",
+  description: "Quick Step requires Speed 8, but the sample character has Speed 7.",
+}>
+
+// -----------------------------------------------------------------------------
+// Root inclusion edges
+// -----------------------------------------------------------------------------
+
+unlockInterpretationIncludesHeavyStrikeStatus := {
+  unlockInterpretationRoot : includesStatusInterpretation : heavyStrikeStatusInterpretation
+}
+
+unlockInterpretationIncludesPowerSwingStatus := {
+  unlockInterpretationRoot : includesStatusInterpretation : powerSwingStatusInterpretation
+}
+
+unlockInterpretationIncludesShieldGuardStatus := {
+  unlockInterpretationRoot : includesStatusInterpretation : shieldGuardStatusInterpretation
+}
+
+unlockInterpretationIncludesArcaneBoltStatus := {
+  unlockInterpretationRoot : includesStatusInterpretation : arcaneBoltStatusInterpretation
+}
+
+unlockInterpretationIncludesQuickStepStatus := {
+  unlockInterpretationRoot : includesStatusInterpretation : quickStepStatusInterpretation
+}
+
+// -----------------------------------------------------------------------------
+// Status applies-to edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusAppliesToHeavyStrike := {
+  heavyStrikeStatusInterpretation : appliesToSkill : heavyStrike
+}
+
+powerSwingStatusAppliesToPowerSwing := {
+  powerSwingStatusInterpretation : appliesToSkill : powerSwing
+}
+
+shieldGuardStatusAppliesToShieldGuard := {
+  shieldGuardStatusInterpretation : appliesToSkill : shieldGuard
+}
+
+arcaneBoltStatusAppliesToArcaneBolt := {
+  arcaneBoltStatusInterpretation : appliesToSkill : arcaneBolt
+}
+
+quickStepStatusAppliesToQuickStep := {
+  quickStepStatusInterpretation : appliesToSkill : quickStep
+}
+
+// -----------------------------------------------------------------------------
+// Status classification edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusIsUnlocked := {
+  heavyStrikeStatusInterpretation : hasStatus : unlocked
+}
+
+powerSwingStatusIsLocked := {
+  powerSwingStatusInterpretation : hasStatus : locked
+}
+
+shieldGuardStatusIsLocked := {
+  shieldGuardStatusInterpretation : hasStatus : locked
+}
+
+arcaneBoltStatusIsLocked := {
+  arcaneBoltStatusInterpretation : hasStatus : locked
+}
+
+quickStepStatusIsLocked := {
+  quickStepStatusInterpretation : hasStatus : locked
+}
+
+// -----------------------------------------------------------------------------
+// Requirement result edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusUsesAcquiredRequirement := {
+  heavyStrikeStatusInterpretation : usesRequirementInterpretation : heavyStrikeAcquiredRequirementMet
+}
+
+powerSwingStatusUsesStrengthRequirement := {
+  powerSwingStatusInterpretation : usesRequirementInterpretation : powerSwingStrengthRequirementUnmet
+}
+
+powerSwingStatusUsesDependencyRequirement := {
+  powerSwingStatusInterpretation : usesRequirementInterpretation : powerSwingDependencyRequirementMet
+}
+
+shieldGuardStatusUsesDefenseRequirement := {
+  shieldGuardStatusInterpretation : usesRequirementInterpretation : shieldGuardDefenseRequirementUnmet
+}
+
+arcaneBoltStatusUsesIntelligenceRequirement := {
+  arcaneBoltStatusInterpretation : usesRequirementInterpretation : arcaneBoltIntelligenceRequirementUnmet
+}
+
+quickStepStatusUsesSpeedRequirement := {
+  quickStepStatusInterpretation : usesRequirementInterpretation : quickStepSpeedRequirementUnmet
+}
+
+heavyStrikeRequirementMetEdge := {
+  heavyStrikeAcquiredRequirementMet : hasResult : requirementMet
+}
+
+powerSwingStrengthRequirementUnmetEdge := {
+  powerSwingStrengthRequirementUnmet : hasResult : requirementUnmet
+}
+
+powerSwingDependencyRequirementMetEdge := {
+  powerSwingDependencyRequirementMet : hasResult : requirementMet
+}
+
+shieldGuardDefenseRequirementUnmetEdge := {
+  shieldGuardDefenseRequirementUnmet : hasResult : requirementUnmet
+}
+
+arcaneBoltIntelligenceRequirementUnmetEdge := {
+  arcaneBoltIntelligenceRequirementUnmet : hasResult : requirementUnmet
+}
+
+quickStepSpeedRequirementUnmetEdge := {
+  quickStepSpeedRequirementUnmet : hasResult : requirementUnmet
+}
+
+// -----------------------------------------------------------------------------
+// Runtime fact reference edges
+// -----------------------------------------------------------------------------
+
+unlockInterpretationReferencesRuntimeSmokeGraph := {
+  unlockInterpretationRoot : referencesRuntimeGraph : runtimeSmokeGraph
+}
+
+heavyStrikeInterpretationReferencesUnlockedFact := {
+  heavyStrikeStatusInterpretation : referencesRuntimeFact : sampleUnlockedHeavyStrike
+}
+
+powerSwingInterpretationReferencesStrengthValue := {
+  powerSwingStatusInterpretation : referencesRuntimeFact : sampleStrengthValue
+}
+
+shieldGuardInterpretationReferencesDefenseValue := {
+  shieldGuardStatusInterpretation : referencesRuntimeFact : sampleDefenseValue
+}
+
+arcaneBoltInterpretationReferencesIntelligenceValue := {
+  arcaneBoltStatusInterpretation : referencesRuntimeFact : sampleIntelligenceValue
+}
+
+quickStepInterpretationReferencesSpeedValue := {
+  quickStepStatusInterpretation : referencesRuntimeFact : sampleSpeedValue
+}
+
+// -----------------------------------------------------------------------------
+// Blocking reason edges
+// -----------------------------------------------------------------------------
+
+powerSwingBlockedByStrengthRequirement := {
+  powerSwingStatusInterpretation : blockedBy : blockedByRequirement
+}
+
+shieldGuardBlockedByDefenseRequirement := {
+  shieldGuardStatusInterpretation : blockedBy : blockedByRequirement
+}
+
+arcaneBoltBlockedByIntelligenceRequirement := {
+  arcaneBoltStatusInterpretation : blockedBy : blockedByRequirement
+}
+
+quickStepBlockedBySpeedRequirement := {
+  quickStepStatusInterpretation : blockedBy : blockedByRequirement
+}
+
+// Power Swing dependency is met, so this edge intentionally states it is
+// not blocked by dependency as a semantic explanation node.
+powerSwingDependencySatisfied := {
+  powerSwingDependencyRequirementMet : satisfiesDependencyFor : powerSwing
+}
+
+// -----------------------------------------------------------------------------
+// Explanation edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeStatusHasExplanation := {
+  heavyStrikeStatusInterpretation : hasExplanation : heavyStrikeExplanation
+}
+
+powerSwingStatusHasExplanation := {
+  powerSwingStatusInterpretation : hasExplanation : powerSwingExplanation
+}
+
+shieldGuardStatusHasExplanation := {
+  shieldGuardStatusInterpretation : hasExplanation : shieldGuardExplanation
+}
+
+arcaneBoltStatusHasExplanation := {
+  arcaneBoltStatusInterpretation : hasExplanation : arcaneBoltExplanation
+}
+
+quickStepStatusHasExplanation := {
+  quickStepStatusInterpretation : hasExplanation : quickStepExplanation
+}
+
+// -----------------------------------------------------------------------------
+// Unlock interpretation graph
+// -----------------------------------------------------------------------------
+
+unlockInterpretationGraph := @seed(graph) {
+  node: [
+    unlockInterpretationRoot,
+
+    heavyStrikeStatusInterpretation,
+    powerSwingStatusInterpretation,
+    shieldGuardStatusInterpretation,
+    arcaneBoltStatusInterpretation,
+    quickStepStatusInterpretation,
+
+    heavyStrikeAcquiredRequirementMet,
+    powerSwingStrengthRequirementUnmet,
+    powerSwingDependencyRequirementMet,
+    shieldGuardDefenseRequirementUnmet,
+    arcaneBoltIntelligenceRequirementUnmet,
+    quickStepSpeedRequirementUnmet,
+
+    heavyStrikeExplanation,
+    powerSwingExplanation,
+    shieldGuardExplanation,
+    arcaneBoltExplanation,
+    quickStepExplanation,
+  ],
+
+  edge: [
+    unlockInterpretationIncludesHeavyStrikeStatus,
+    unlockInterpretationIncludesPowerSwingStatus,
+    unlockInterpretationIncludesShieldGuardStatus,
+    unlockInterpretationIncludesArcaneBoltStatus,
+    unlockInterpretationIncludesQuickStepStatus,
+
+    heavyStrikeStatusAppliesToHeavyStrike,
+    powerSwingStatusAppliesToPowerSwing,
+    shieldGuardStatusAppliesToShieldGuard,
+    arcaneBoltStatusAppliesToArcaneBolt,
+    quickStepStatusAppliesToQuickStep,
+
+    heavyStrikeStatusIsUnlocked,
+    powerSwingStatusIsLocked,
+    shieldGuardStatusIsLocked,
+    arcaneBoltStatusIsLocked,
+    quickStepStatusIsLocked,
+
+    heavyStrikeStatusUsesAcquiredRequirement,
+    powerSwingStatusUsesStrengthRequirement,
+    powerSwingStatusUsesDependencyRequirement,
+    shieldGuardStatusUsesDefenseRequirement,
+    arcaneBoltStatusUsesIntelligenceRequirement,
+    quickStepStatusUsesSpeedRequirement,
+
+    heavyStrikeRequirementMetEdge,
+    powerSwingStrengthRequirementUnmetEdge,
+    powerSwingDependencyRequirementMetEdge,
+    shieldGuardDefenseRequirementUnmetEdge,
+    arcaneBoltIntelligenceRequirementUnmetEdge,
+    quickStepSpeedRequirementUnmetEdge,
+
+    unlockInterpretationReferencesRuntimeSmokeGraph,
+    heavyStrikeInterpretationReferencesUnlockedFact,
+    powerSwingInterpretationReferencesStrengthValue,
+    shieldGuardInterpretationReferencesDefenseValue,
+    arcaneBoltInterpretationReferencesIntelligenceValue,
+    quickStepInterpretationReferencesSpeedValue,
+
+    powerSwingBlockedByStrengthRequirement,
+    shieldGuardBlockedByDefenseRequirement,
+    arcaneBoltBlockedByIntelligenceRequirement,
+    quickStepBlockedBySpeedRequirement,
+    powerSwingDependencySatisfied,
+
+    heavyStrikeStatusHasExplanation,
+    powerSwingStatusHasExplanation,
+    shieldGuardStatusHasExplanation,
+    arcaneBoltStatusHasExplanation,
+    quickStepStatusHasExplanation,
+  ],
+
+  meta: {
+    purpose: "Interpret Pass 11 runtime facts into deterministic skill unlock statuses.",
+    owner: tat,
+    status: "pass_12_unlock_interpretation_ready",
+    interpretationMode: "authored_deterministic",
+    dynamicRuleNote: "Later passes can replace authored interpretation nodes with @derive/@query-based dynamic evaluation.",
+  },
+
+  root: unlockInterpretationRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Projection for interpreted unlock statuses
+// -----------------------------------------------------------------------------
+
+unlockInterpretationProjection := @project(graph) {
+  source: unlockInterpretationGraph,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose interpreted skill unlock statuses and explanations.",
+}
+
+unlockInterpretationProjectionView := unlockInterpretationGraph <> unlockInterpretationProjection(unlockInterpretationGraph)
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  unlockInterpretationRoot,
+  unlockInterpretationGraph,
+  unlockInterpretationProjection,
+  unlockInterpretationProjectionView,
+
+  heavyStrikeStatusInterpretation,
+  powerSwingStatusInterpretation,
+  shieldGuardStatusInterpretation,
+  arcaneBoltStatusInterpretation,
+  quickStepStatusInterpretation,
+
+  heavyStrikeAcquiredRequirementMet,
+  powerSwingStrengthRequirementUnmet,
+  powerSwingDependencyRequirementMet,
+  shieldGuardDefenseRequirementUnmet,
+  arcaneBoltIntelligenceRequirementUnmet,
+  quickStepSpeedRequirementUnmet,
+
+  heavyStrikeExplanation,
+  powerSwingExplanation,
+  shieldGuardExplanation,
+  arcaneBoltExplanation,
+  quickStepExplanation,
+}

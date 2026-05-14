@@ -1,0 +1,259 @@
+import { describe, expect, it } from "vitest";
+
+import { validateV3Source } from "../src/validator/index";
+
+function messages(source: string): string[] {
+  return validateV3Source(source).diagnostics.map((diagnostic) => diagnostic.message);
+}
+
+describe("TAT v3 flow, constructor, injection, event, and explanation validation", () => {
+  it("valid action passes", () => {
+    const result = validateV3Source(`
+      heal := @action(graph) {
+        ?> @query(state) {
+          node: target,
+          key: hp
+        }
+        -> @update(state) {
+          target.hp = @derive(value) { target: value, formula: target.hp + amount }
+        }
+        <> @project(target) {
+          format: custom,
+          include: [target.hp]
+        }
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("action rejects seed directives", () => {
+    expect(messages(`
+      heal := @action(target) {
+        -> @seed(graph) {
+          root: target
+        }
+      }
+    `)).toContain("@seed(...) is not allowed inside @action().");
+  });
+
+  it("valid project passes", () => {
+    const result = validateV3Source(`
+      projection1 := @project(node) {
+        format: custom,
+        include: [node.hp, node.class, node.actions]
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("project rejects mutation directive nesting", () => {
+    expect(messages(`
+      projection1 := @project(node) {
+        format: custom,
+        include: [node.hp],
+        mutate: @update(state) {
+          node.hp = 10
+        }
+      }
+    `)).toContain("Mutation directives are not allowed inside @project(...).");
+  });
+
+  it("valid injection flow passes", () => {
+    const result = validateV3Source(`
+      result := graph1
+        <- @inject(runtimeHook, "runtime.py")
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("standalone inject fails", () => {
+    expect(messages('@inject(runtimeHook, "runtime.py")')).toContain(
+      '@inject(...) must be used in injection flow with "<-".',
+    );
+  });
+
+  it("inject missing fileName fails", () => {
+    expect(messages(`
+      result := graph1
+        <- @inject(runtimeHook)
+    `)).toContain("@inject(...) requires hookRef and fileName arguments.");
+  });
+
+  it("inject non-string fileName fails", () => {
+    expect(messages(`
+      result := graph1
+        <- @inject(runtimeHook, runtimeFile)
+    `)).toContain("@inject(...) fileName must be a string literal.");
+  });
+
+  it("valid repeat passes", () => {
+    expect(validateV3Source(`
+      @repeat(graph) {
+          target: graph1,
+          maxIterations: 3,
+          over: @match(node) { where: {} },
+          action: {
+        action: {
+          -> action1(node1)
+        }
+      }
+    `).valid).toBe(true);
+
+    expect(validateV3Source(`
+      @repeat() {
+        while: @query(state) {
+          node: node1,
+          key: hp,
+          value: > 0
+        },
+        action: {
+          -> action1(node1)
+        }
+      }
+    `).valid).toBe(true);
+  });
+
+  it("repeat without times or while fails", () => {
+    expect(messages(`
+      @repeat() {
+        action: {
+          -> action1(node1)
+        }
+      }
+    `)).toContain("@repeat() requires either a times argument or a while condition.");
+  });
+
+  it("repeat non-positive times fails", () => {
+    expect(messages(`
+      @repeat(graph) {
+          target: graph1,
+          maxIterations: 0,
+          over: @match(node) { where: {} },
+          action: {
+        action: {
+          -> action1(node1)
+        }
+      }
+    `)).toContain("@repeat(...) times must be a positive number.");
+  });
+
+  it("valid when passes", () => {
+    const result = validateV3Source(`
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) {
+          node: node1,
+          key: hp,
+          value: < 20
+        },
+        action: {
+          -> action1(node1)
+        }
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("when missing event fails", () => {
+    expect(messages(`
+      @when() {
+        condition: @query(state) { node: node1 },
+        action: { -> action1(node1) }
+      }
+    `)).toContain("@when(...) requires an event name.");
+  });
+
+  it("when missing do block fails", () => {
+    expect(messages(`
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1 }
+      }
+    `)).toContain("@when(lowHp) requires a do block.");
+  });
+
+  it("standalone explanation projection fails", () => {
+    expect(messages("@who()")).toContain('@who() must be used in projection flow with "<>".');
+  });
+
+  it("invalid how include value fails", () => {
+    expect(messages(`
+      result := graph1
+        <> @how() {
+          include: [parse]
+        }
+    `)).toContain('Invalid @how() include value "parse".');
+  });
+
+  it("valid explanation projection includes pass", () => {
+    const result = validateV3Source(`
+      result := graph1
+        <> @who() { include: [actor, target, affected] }
+        <> @what() { include: [actions, changes] }
+        <> @why() { include: [queries, gates, triggers] }
+        <> @how() {
+          include: [flow, actions, mutations, injections, projections],
+          depth: full
+        }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("injection flow rejects non-inject directives", () => {
+    expect(messages(`
+      result := graph1
+        <- @query(state) { node: node1 }
+    `)).toContain('Injection flow "<-" only accepts @inject(...).');
+  });
+
+  it("mutation flow rejects read-only query directives", () => {
+    expect(messages(`
+      result := graph1
+        -> @query(state) { node: node1 }
+    `)).toContain("@query(...) is read-only and cannot be used in mutation flow.");
+  });
+
+  it("projection flow rejects update directives", () => {
+    expect(messages(`
+      result := graph1
+        <> @update(state) { node1.hp = 10 }
+    `)).toContain("@update(...) cannot be used in projection flow.");
+  });
+
+  it("conditional gate without condition fails", () => {
+    expect(messages(`
+      result := graph1
+        ?>
+        -> action1(node1)
+    `)).toContain("?> requires a condition.");
+  });
+
+  it("gate with mutation directive condition fails", () => {
+    expect(messages(`
+      result := graph1
+        ?> @update(state) { node1.hp = 10 }
+        -> action1(node1)
+    `)).toContain("Mutation directives cannot be used as gate conditions.");
+  });
+
+  it("duplicate main projection fails", () => {
+    expect(messages(`
+      result := graph1
+        <> projection1(node1)
+        <> projection2(node2)
+    `)).toContain("A projection chain may contain only one main projection.");
+  });
+
+  it("duplicate who projection fails", () => {
+    expect(messages(`
+      result := graph1
+        <> @who()
+        <> @who()
+    `)).toContain("A projection chain may contain only one @who() projection.");
+  });
+});

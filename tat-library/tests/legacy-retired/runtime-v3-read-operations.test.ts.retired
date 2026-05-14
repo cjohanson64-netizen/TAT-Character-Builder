@@ -1,0 +1,339 @@
+import { describe, expect, it } from "vitest";
+
+import { runV3Source } from "../src/runtime/index";
+
+const readFixture = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1",
+    firstName: "Node",
+    lastName: "One",
+    maxHp: 100
+  }>
+
+  node2 := <node {
+    id: node2,
+    label: "Node 2"
+  }>
+
+  edge1 := { node1 : connectedTo : node2 }
+
+  graph1 := @seed(graph) {
+    node: [node1, node2],
+    edge: [edge1],
+    state: {
+      node1.hp: 40
+    },
+    meta: {
+      node1.role: actor
+    },
+    root: node1
+  }
+
+  derivedHp := @derive(value) { target: value, formula: node1.hp + 10 }
+  fullName := @derive(value) { target: value, formula: node1.firstName + " " + node1.lastName }
+  minHp := @derive(value) { target: value, formula: min(node1.hp, node1.maxHp) }
+  clampedHp := @derive(value) { target: value, formula: clamp(node1.hp, 0, node1.maxHp) }
+
+  isNode1 := @query(node) {
+    id: node1
+  }
+
+  hasEdgeFromNode1 := @query(edge) {
+    from: node1
+  }
+
+  hasExactEdge := @query(edge) {
+    from: node1,
+    relation: connectedTo,
+    to: node2
+  }
+
+  hasNodeState := @query(state) {
+    node: node1
+  }
+
+  isLowHp := @query(state) {
+    node: node1,
+    key: hp,
+    value: < 50
+  }
+
+  hasNodeMeta := @query(meta) {
+    node: node1
+  }
+
+  isActor := @query(meta) {
+    node: node1,
+    key: role,
+    value: actor
+  }
+
+  route1 := @traverse(graph) {
+        target: graph1,
+    from: node1,
+    to: node2,
+    through: connectedTo,
+    depth: 2
+  }
+
+  matches1 := @match(node) {
+    where: {
+      state.hp: < 50,
+      meta.role: actor
+    }
+  }
+
+  matchesEdgeFromRelation := @match(edge) {
+    where: {
+      relation: connectedTo,
+      from: node1
+    }
+  }
+
+  matchesEdgeTo := @match(edge) {
+    where: {
+      to: node2
+    }
+  }
+`;
+
+function primitiveValue(result: ReturnType<typeof runV3Source>, name: string): unknown {
+  return result.bindings[name]?.type === "primitive" ? result.bindings[name].value : undefined;
+}
+
+function readValue(result: ReturnType<typeof runV3Source>, name: string): any {
+  return result.bindings[name]?.type === "read" ? result.bindings[name].value : undefined;
+}
+
+describe("TAT v3 runtime read operations", () => {
+  it("derive returns expected number", () => {
+    expect(primitiveValue(runV3Source(readFixture), "derivedHp")).toBe(50);
+  });
+
+  it("derive concatenates strings", () => {
+    expect(primitiveValue(runV3Source(readFixture), "fullName")).toBe("Node One");
+  });
+
+  it("compute min works", () => {
+    expect(primitiveValue(runV3Source(readFixture), "minHp")).toBe(40);
+  });
+
+  it("compute clamp works", () => {
+    expect(primitiveValue(runV3Source(readFixture), "clampedHp")).toBe(40);
+  });
+
+  it("unknown compute function produces diagnostic", () => {
+    const result = runV3Source(`
+      node1 := <node { id: node1, hp: 40 }>
+      graph1 := @seed(graph) { node: [node1], root: node1 }
+      weird := @derive(value) { target: value, formula: randomThing(node1.hp) }
+    `);
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Unknown compute function "randomThing".',
+    );
+  });
+
+  it("query node finds matching node", () => {
+    expect(readValue(runV3Source(readFixture), "isNode1")).toMatchObject({
+      result: true,
+      domain: "node",
+    });
+  });
+
+  it("partial query edge finds matching edge", () => {
+    expect(readValue(runV3Source(readFixture), "hasEdgeFromNode1")).toMatchObject({
+      result: true,
+      domain: "edge",
+    });
+  });
+
+  it("exact query edge finds matching edge", () => {
+    expect(readValue(runV3Source(readFixture), "hasExactEdge")).toMatchObject({
+      result: true,
+      domain: "edge",
+    });
+  });
+
+  it("partial query state returns true if any state exists", () => {
+    expect(readValue(runV3Source(readFixture), "hasNodeState")).toMatchObject({
+      result: true,
+      domain: "state",
+    });
+  });
+
+  it("query state with comparison works", () => {
+    expect(readValue(runV3Source(readFixture), "isLowHp")).toMatchObject({
+      result: true,
+      domain: "state",
+    });
+  });
+
+  it("partial query meta returns true if any meta exists", () => {
+    expect(readValue(runV3Source(readFixture), "hasNodeMeta")).toMatchObject({
+      result: true,
+      domain: "meta",
+    });
+  });
+
+  it("query meta with key value works", () => {
+    expect(readValue(runV3Source(readFixture), "isActor")).toMatchObject({
+      result: true,
+      domain: "meta",
+    });
+  });
+
+  it("query event is recorded", () => {
+    const result = runV3Source(readFixture);
+
+    expect(result.events.some((event) => event.type === "query" && event.detail?.domain === "state")).toBe(true);
+    expect(result.graphs.graph1.history.some((event) => event.type === "query")).toBe(true);
+  });
+
+  it("traverse returns reachable path", () => {
+    expect(readValue(runV3Source(readFixture), "route1")).toMatchObject({
+      has: true,
+      count: 1,
+      paths: [{ nodes: ["node1", "node2"], edges: ["edge1"] }],
+    });
+  });
+
+  it("traverse respects through", () => {
+    const result = runV3Source(`
+      node1 := <node { id: node1 }>
+      node2 := <node { id: node2 }>
+      edge1 := { node1 : connectedTo : node2 }
+      graph1 := @seed(graph) { node: [node1, node2], edge: [edge1], root: node1 }
+      route1 := @traverse(graph) {
+        target: graph1,
+        from: node1,
+        to: node2,
+        through: blockedBy,
+        depth: 2
+      }
+    `);
+
+    expect(readValue(result, "route1")).toMatchObject({
+      has: false,
+      count: 0,
+      paths: [],
+    });
+  });
+
+  it("traverse through relation does not treat implicit edges as that relation", () => {
+    const result = runV3Source(`
+      node1 := <node { id: node1 }>
+      node2 := <node { id: node2 }>
+      node3 := <node { id: node3 }>
+      edge1 := { node1 : connectedTo : node2 }
+      edge2 := { node2 :: node3 }
+      graph1 := @seed(graph) { node: [node1, node2, node3], edge: [edge1, edge2], root: node1 }
+      route1 := @traverse(graph) {
+        target: graph1,
+        from: node1,
+        to: node3,
+        through: connectedTo,
+        depth: 3
+      }
+    `);
+
+    expect(readValue(result, "route1")).toMatchObject({
+      has: false,
+      count: 0,
+      paths: [],
+    });
+  });
+
+  it("traverse without through can use implicit edges", () => {
+    const result = runV3Source(`
+      node1 := <node { id: node1 }>
+      node2 := <node { id: node2 }>
+      node3 := <node { id: node3 }>
+      edge1 := { node1 : connectedTo : node2 }
+      edge2 := { node2 :: node3 }
+      graph1 := @seed(graph) { node: [node1, node2, node3], edge: [edge1, edge2], root: node1 }
+      route1 := @traverse(graph) {
+        target: graph1,
+        from: node1,
+        to: node3,
+        depth: 3
+      }
+    `);
+
+    expect(readValue(result, "route1")).toMatchObject({
+      has: true,
+      count: 1,
+      paths: [{ nodes: ["node1", "node2", "node3"], edges: ["edge1", "edge2"] }],
+    });
+  });
+
+  it("traverse returns false when no path exists", () => {
+    const result = runV3Source(`
+      node1 := <node { id: node1 }>
+      node2 := <node { id: node2 }>
+      graph1 := @seed(graph) { node: [node1, node2], root: node1 }
+      route1 := @traverse(graph) {
+        target: graph1,
+        from: node1,
+        to: node2,
+        depth: 2
+      }
+    `);
+
+    expect(readValue(result, "route1")).toMatchObject({
+      has: false,
+      count: 0,
+    });
+  });
+
+  it("match edge supports partial relation and from filters", () => {
+    const match = readValue(runV3Source(readFixture), "matchesEdgeFromRelation");
+
+    expect(match).toMatchObject({
+      domain: "edge",
+      count: 1,
+    });
+    expect(match.items[0]).toMatchObject({
+      from: "node1",
+      relation: "connectedTo",
+      to: "node2",
+    });
+  });
+
+  it("match edge supports partial to filter", () => {
+    const match = readValue(runV3Source(readFixture), "matchesEdgeTo");
+
+    expect(match).toMatchObject({
+      domain: "edge",
+      count: 1,
+    });
+    expect(match.items[0]).toMatchObject({
+      to: "node2",
+    });
+  });
+
+  it("match node returns nodes matching state and meta filters", () => {
+    const match = readValue(runV3Source(readFixture), "matches1");
+
+    expect(match).toMatchObject({
+      domain: "node",
+      count: 1,
+    });
+    expect(match.items[0]).toMatchObject({
+      id: "node1",
+    });
+  });
+
+  it("top-level read directive bindings are stored", () => {
+    const result = runV3Source(readFixture);
+
+    expect(result.bindings.derivedHp).toMatchObject({ type: "primitive", value: 50 });
+    expect(result.bindings.clampedHp).toMatchObject({ type: "primitive", value: 40 });
+    expect(result.bindings.isLowHp).toMatchObject({ type: "read", value: { result: true } });
+    expect(result.bindings.route1).toMatchObject({ type: "read", value: { has: true } });
+    expect(result.bindings.matches1).toMatchObject({ type: "read", value: { count: 1 } });
+    expect(result.bindings.matchesEdgeFromRelation).toMatchObject({ type: "read", value: { count: 1 } });
+  });
+});

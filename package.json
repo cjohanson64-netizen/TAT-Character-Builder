@@ -1,0 +1,17 @@
+{
+  "name": "tat-character-builder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:tat-runner": "esbuild tat-library/run-module-json.ts --bundle --platform=node --format=cjs --outfile=tat-library/dist/run-module-json.cjs --external:fsevents"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

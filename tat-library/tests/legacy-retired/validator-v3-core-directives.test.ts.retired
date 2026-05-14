@@ -1,0 +1,196 @@
+import { describe, expect, it } from "vitest";
+
+import { validateV3Source } from "../src/validator/index";
+
+function messages(source: string): string[] {
+  return validateV3Source(source).diagnostics.map((diagnostic) => diagnostic.message);
+}
+
+describe("TAT v3 core directive validation", () => {
+  it("valid seed passes", () => {
+    const result = validateV3Source(`
+      graph1 := @seed(graph) {
+        node: [node1, node2],
+        edge: [edge1],
+        state: {
+          node1.hp: @derive(value) { target: value, formula: node1.baseHp + 10 }
+        },
+        meta: {
+          node1.role: actor
+        },
+        root: node1
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("seed missing root fails", () => {
+    expect(messages(`
+      graph1 := @seed(graph) {
+        node: [node1]
+      }
+    `)).toContain("@seed(graph) requires a root value.");
+  });
+
+  it("seed rejects inject directives", () => {
+    expect(messages(`
+      graph1 := @seed(graph) {
+        root: node1,
+        state: {
+          node1.hp: @inject(runtimeHook, "runtime.py")
+        }
+      }
+    `)).toContain("@inject(...) is not allowed inside @seed(graph).");
+  });
+
+  it("valid progressive query passes", () => {
+    expect(validateV3Source("@query(state) { node: node1 }").valid).toBe(true);
+    expect(validateV3Source("@query(edge) { from: node1, relation: connectedTo }").valid).toBe(true);
+    expect(validateV3Source("@query(state) { value: >= @derive(value) { target: value, formula: node1.maxHp / 2 } }").valid).toBe(true);
+  });
+
+  it("query rejects mutation directive nesting", () => {
+    expect(messages(`
+      @query(state) {
+        node: node1,
+        value: @update(state) {
+          node1.hp = 10
+        }
+      }
+    `)).toContain("@update(...) is not allowed inside @query().");
+  });
+
+  it("valid derive passes", () => {
+    expect(validateV3Source("@derive(value) { target: value, formula: node1.hp + 10 }").valid).toBe(true);
+    expect(validateV3Source('@derive(value) { target: value, formula: node1.firstName + " " + node1.lastName }').valid).toBe(true);
+    expect(validateV3Source("@derive(value) { target: value, formula: node1.hp + @derive(value) { target: value, formula: min(healAmount, 10) } }").valid).toBe(true);
+  });
+
+  it("derive rejects mutation directive nesting", () => {
+    expect(messages("@derive(value) { target: value, formula: @graft(state) { node1.hp: 10 } }")).toContain(
+      "@graft(...) is not allowed inside @derive(value) { target: value, formula:  }.",
+    );
+  });
+
+  it("valid compute passes", () => {
+    expect(validateV3Source("@derive(value) { target: value, formula: min(node1.hp, node1.maxHp) }").valid).toBe(true);
+    expect(validateV3Source("@derive(value) { target: value, formula: clamp(node1.hp, 0, node1.maxHp) }").valid).toBe(true);
+    expect(validateV3Source("@derive(value) { target: value, formula: round(node1.hp) }").valid).toBe(true);
+  });
+
+  it("compute unknown function fails", () => {
+    expect(messages("@derive(value) { target: value, formula: randomThing(node1.hp) }")).toContain(
+      'Unknown compute function "randomThing".',
+    );
+  });
+
+  it("valid graft with multiple entries passes", () => {
+    const result = validateV3Source(`
+      @graft(node) {
+        node3: <node { id: node3 }>,
+        node4: <node { id: node4 }>
+      }
+      @graft(edge) {
+        edge3: { node1 : trusts : node2 }
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("graft rejects condition key", () => {
+    expect(messages(`
+      @graft(edge) {
+        condition: @query(state) { node: node1 },
+        edge3: { node1 : trusts : node2 }
+      }
+    `)).toContain("Conditions belong in flow gates, not inside @graft(...).");
+  });
+
+  it("valid prune passes", () => {
+    expect(validateV3Source("@prune(edge) { relation: connectedTo }").valid).toBe(true);
+    expect(validateV3Source("@prune(state) { node1.poisoned }").valid).toBe(true);
+  });
+
+  it("prune rejects condition key", () => {
+    expect(messages(`
+      @prune(edge) {
+        condition: @query(state) { node: node1 },
+        relation: connectedTo
+      }
+    `)).toContain("Conditions belong in flow gates, not inside @prune(...).");
+  });
+
+  it("valid update assignments pass", () => {
+    const result = validateV3Source(`
+      @update(state) {
+        node1.hp = @derive(value) { target: value, formula: node1.hp - damage },
+        node1.status = wounded
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("update rejects updates wrapper", () => {
+    expect(messages(`
+      @update(state) {
+        updates: [
+          node1.hp = 10
+        ]
+      }
+    `)).toContain("@update(state) uses direct assignments. Remove the updates: [] wrapper.");
+  });
+
+  it("valid traverse passes", () => {
+    const result = validateV3Source(`
+      route1 := @traverse(graph) {
+        target: graph1,
+        from: node1,
+        to: node2,
+        through: connectedTo,
+        depth: 3,
+        limit: 10,
+        rules: {
+          backtracking: false,
+          repeatNodes: false,
+          repeatEdges: false
+        },
+        return: first
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("traverse missing to fails", () => {
+    expect(messages(`
+      route1 := @traverse(graph) {
+        target: graph1,
+        from: node1
+      }
+    `)).toContain('@traverse(graph) requires a "to" value.');
+  });
+
+  it("valid match passes", () => {
+    const result = validateV3Source(`
+      matches1 := @match(node) {
+        where: {
+          state.hp: < 20,
+          meta.role: actor
+        }
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("match missing where fails", () => {
+    expect(messages(`
+      matches1 := @match(node) {
+        state.hp: < 20
+      }
+    `)).toContain("@match(node) requires a where block.");
+  });
+});

@@ -1,0 +1,338 @@
+import { describe, expect, it } from "vitest";
+
+import { runV3Source } from "../src/runtime/index";
+
+const repeatFixture = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1"
+  }>
+
+  graph1 := @seed(graph) {
+    node: [node1],
+    state: {
+      node1.hp: 0,
+      node1.stamina: 2
+    },
+    root: node1
+  }
+`;
+
+const whenFixture = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1"
+  }>
+
+  graph1 := @seed(graph) {
+    node: [node1],
+    state: {
+      node1.hp: 30,
+      node1.status: normal
+    },
+    root: node1
+  }
+`;
+
+function flowValue(result: ReturnType<typeof runV3Source>): any {
+  return result.bindings.result?.type === "flowResult" ? result.bindings.result.value : undefined;
+}
+
+describe("TAT v3 runtime repeat and when triggers", () => {
+  it("repeat with times executes do flow fixed number of times", () => {
+    const result = runV3Source(`
+      ${repeatFixture}
+      result := graph1
+        -> @repeat(graph) {
+          target: graph1,
+          maxIterations: 3,
+          over: @match(node) { where: {} },
+          action: {
+          action: {
+            -> @update(state) {
+              node1.hp = @derive(value) { target: value, formula: node1.hp + 1 }
+            }
+          }
+        }
+    `);
+
+    expect(result.status).toBe("success");
+    expect(result.graphs.graph1.state.node1.hp).toBe(3);
+  });
+
+  it("repeat with while executes until condition fails", () => {
+    const result = runV3Source(`
+      ${repeatFixture}
+      result := graph1
+        -> @repeat() {
+          while: @query(state) {
+            node: node1,
+            key: hp,
+            value: < 15
+          },
+          action: {
+            -> @update(state) {
+              node1.hp = @derive(value) { target: value, formula: node1.hp + 5 }
+            }
+          }
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(15);
+  });
+
+  it("repeat with times and while stops early when condition fails", () => {
+    const result = runV3Source(`
+      ${repeatFixture}
+      result := graph1
+        -> @repeat(graph) {
+          target: graph1,
+          maxIterations: 5,
+          over: @match(node) { where: {} },
+          action: {
+          while: @query(state) {
+            node: node1,
+            key: stamina,
+            value: > 0
+          },
+          action: {
+            -> @update(state) {
+              node1.stamina = @derive(value) { target: value, formula: node1.stamina - 1 }
+            }
+          }
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.stamina).toBe(0);
+    expect(result.events.find((event) => event.type === "repeat")).toMatchObject({
+      iterations: 2,
+      stoppedBy: "while",
+    });
+  });
+
+  it("repeat event records iteration count", () => {
+    const result = runV3Source(`
+      ${repeatFixture}
+      result := graph1
+        -> @repeat(graph) {
+          target: graph1,
+          maxIterations: 3,
+          over: @match(node) { where: {} },
+          action: {
+          action: {
+            -> @update(state) {
+              node1.hp = @derive(value) { target: value, formula: node1.hp + 1 }
+            }
+          }
+        }
+    `);
+
+    expect(result.events.find((event) => event.type === "repeat")).toMatchObject({
+      iterations: 3,
+      limit: 3,
+      stoppedBy: "times",
+    });
+  });
+
+  it("repeat event appears in graph history", () => {
+    const result = runV3Source(`
+      ${repeatFixture}
+      result := graph1
+        -> @repeat(graph) {
+          target: graph1,
+          maxIterations: 1,
+          over: @match(node) { where: {} },
+          action: {
+          action: {
+            -> @update(state) {
+              node1.hp = @derive(value) { target: value, formula: node1.hp + 1 }
+            }
+          }
+        }
+    `);
+
+    expect(result.graphs.graph1.history.some((event) => event.type === "repeat")).toBe(true);
+  });
+
+  it("how output includes repeat step", () => {
+    const result = runV3Source(`
+      ${repeatFixture}
+      result := graph1
+        -> @repeat(graph) {
+          target: graph1,
+          maxIterations: 3,
+          over: @match(node) { where: {} },
+          action: {
+          action: {
+            -> @update(state) {
+              node1.hp = @derive(value) { target: value, formula: node1.hp + 1 }
+            }
+          }
+        }
+        <> @how()
+    `);
+
+    expect(flowValue(result).projections.how.steps).toContainEqual(
+      expect.objectContaining({ type: "repeat", iterations: 3, stoppedBy: "times" }),
+    );
+  });
+
+  it("top-level when registers listener without executing immediately", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) {
+          node: node1,
+          key: hp,
+          value: < 20
+        },
+        action: {
+          -> @update(state) {
+            node1.status = wounded
+          }
+        }
+      }
+    `);
+
+    expect(result.status).toBe("success");
+    expect(result.graphs.graph1.state.node1.status).toBe("normal");
+  });
+
+  it("mutation causing condition true triggers do flow", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) {
+          node: node1,
+          key: hp,
+          value: < 20
+        },
+        action: {
+          -> @update(state) {
+            node1.status = wounded
+          }
+        }
+      }
+
+      result := graph1
+        -> @update(state) {
+          node1.hp = 10
+        }
+    `);
+
+    expect(result.graphs.graph1.state.node1.status).toBe("wounded");
+  });
+
+  it("trigger event is recorded", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1, key: hp, value: < 20 },
+        action: { -> @update(state) { node1.status = wounded } }
+      }
+      result := graph1 -> @update(state) { node1.hp = 10 }
+    `);
+
+    expect(result.events).toContainEqual(
+      expect.objectContaining({ type: "trigger", event: "lowHp", activated: true }),
+    );
+  });
+
+  it("why output includes trigger output", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1, key: hp, value: < 20 },
+        action: { -> @update(state) { node1.status = wounded } }
+      }
+      result := graph1
+        -> @update(state) { node1.hp = 10 }
+        <> @why()
+    `);
+
+    expect(flowValue(result).projections.why.triggers).toContainEqual(
+      expect.objectContaining({
+        event: "lowHp",
+        activated: true,
+        condition: expect.objectContaining({ domain: "state", node: "node1", key: "hp" }),
+      }),
+    );
+  });
+
+  it("how output includes trigger step", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1, key: hp, value: < 20 },
+        action: { -> @update(state) { node1.status = wounded } }
+      }
+      result := graph1
+        -> @update(state) { node1.hp = 10 }
+        <> @how()
+    `);
+
+    expect(flowValue(result).projections.how.steps).toContainEqual(
+      expect.objectContaining({ type: "trigger", event: "lowHp", activated: true }),
+    );
+  });
+
+  it("trigger do flow can run an action", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      mark := @action(node) {
+        -> @update(state) {
+          node.status = wounded
+        }
+      }
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1, key: hp, value: < 20 },
+        action: { -> mark(node1) }
+      }
+      result := graph1 -> @update(state) { node1.hp = 10 }
+    `);
+
+    expect(result.graphs.graph1.state.node1.status).toBe("wounded");
+    expect(result.events).toContainEqual(expect.objectContaining({ type: "action", name: "mark" }));
+  });
+
+  it("trigger do flow can run direct update", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1, key: hp, value: < 20 },
+        action: { -> @update(state) { node1.status = wounded } }
+      }
+      result := graph1 -> @update(state) { node1.hp = 10 }
+    `);
+
+    expect(result.graphs.graph1.state.node1.status).toBe("wounded");
+  });
+
+  it("trigger recursion guard stops infinite trigger loop and records diagnostic", () => {
+    const result = runV3Source(`
+      ${whenFixture}
+      @when(graph) {
+        target: graph1,
+        condition: @query(state) { node: node1, key: hp, value: < 50 },
+        action: {
+          -> @update(state) {
+            node1.hp = @derive(value) { target: value, formula: node1.hp - 1 }
+          }
+        }
+      }
+      result := graph1 -> @update(state) { node1.hp = 29 }
+    `, { maxTriggerDepth: 3 });
+
+    expect(result.status).toBe("error");
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      "@when trigger depth exceeded maximum of 3.",
+    );
+  });
+});

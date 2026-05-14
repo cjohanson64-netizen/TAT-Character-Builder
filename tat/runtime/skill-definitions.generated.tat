@@ -1,0 +1,199 @@
+// -----------------------------------------------------------------------------
+// skill-definitions.generated.tat
+// AUTO-GENERATED FILE. Do not edit by hand.
+//
+// This is a graph-flow fragment for @inject.
+// It must not contain imports, exports, @seed, or top-level bindings.
+//
+// Python owns raw user-created skill definition values.
+// TAT owns semantic interpretation of those values.
+// -----------------------------------------------------------------------------
+
+-> @graft(node) {
+  heavyStrike: <node {
+    id: heavyStrike,
+    label: "Heavy Strike",
+    kind: userSkill,
+    source: python,
+    sortOrder: 1,
+    description: "A powerful weapon attack.",
+  }>,
+
+  heavyStrikeDefinition: <node {
+    id: heavyStrikeDefinition,
+    label: "Heavy Strike Definition",
+    kind: userSkillDefinition,
+    source: python,
+    targetSkill: heavyStrike,
+    description: "A powerful weapon attack.",
+  }>,
+
+  heavyStrikeSkillPointCost: <node {
+    id: heavyStrikeSkillPointCost,
+    label: "Skill Point Cost",
+    kind: skillPointCost,
+    targetSkill: heavyStrike,
+    value: 2,
+    source: python,
+  }>,
+
+  heavyStrikeHealthPointCost: <node {
+    id: heavyStrikeHealthPointCost,
+    label: "Health Point Cost",
+    kind: healthPointCost,
+    targetSkill: heavyStrike,
+    value: 0,
+    source: python,
+  }>,
+
+  heavyStrikeStrengthRequirement1: <node {
+    id: heavyStrikeStrengthRequirement1,
+    label: "Strength Requirement",
+    kind: statRequirement,
+    targetSkill: heavyStrike,
+    stat: strength,
+    operator: ">=",
+    requiredValue: 8,
+    source: python,
+  }>,
+
+  heavyStrikeDamageEffect: <node {
+    id: heavyStrikeDamageEffect,
+    label: "Damage Effect",
+    kind: damageEffect,
+    targetSkill: heavyStrike,
+    baseDamage: 10,
+    damageType: physical,
+    target: enemy,
+    source: python,
+  }>,
+
+  firstAid: <node {
+    id: firstAid,
+    label: "First Aid",
+    kind: userSkill,
+    source: python,
+    sortOrder: 2,
+    description: "Mend minor wounds",
+  }>,
+
+  firstAidDefinition: <node {
+    id: firstAidDefinition,
+    label: "First Aid Definition",
+    kind: userSkillDefinition,
+    source: python,
+    targetSkill: firstAid,
+    description: "Mend minor wounds",
+  }>,
+
+  firstAidSkillPointCost: <node {
+    id: firstAidSkillPointCost,
+    label: "Skill Point Cost",
+    kind: skillPointCost,
+    targetSkill: firstAid,
+    value: 2,
+    source: python,
+  }>,
+
+  firstAidHealthPointCost: <node {
+    id: firstAidHealthPointCost,
+    label: "Health Point Cost",
+    kind: healthPointCost,
+    targetSkill: firstAid,
+    value: 0,
+    source: python,
+  }>,
+
+  firstAidIntelligenceRequirement1: <node {
+    id: firstAidIntelligenceRequirement1,
+    label: "Intelligence Requirement",
+    kind: statRequirement,
+    targetSkill: firstAid,
+    stat: intelligence,
+    operator: ">=",
+    requiredValue: 10,
+    source: python,
+  }>,
+
+  firstAidLevelRequirement: <node {
+    id: firstAidLevelRequirement,
+    label: "Level Requirement",
+    kind: levelRequirement,
+    targetSkill: firstAid,
+    operator: ">=",
+    requiredValue: 3,
+    source: python,
+  }>,
+
+  firstAidHealEffect: <node {
+    id: firstAidHealEffect,
+    label: "Heal Effect",
+    kind: healEffect,
+    targetSkill: firstAid,
+    baseHealAmount: 5,
+    target: ally,
+    source: python,
+  }>
+}
+
+-> @graft(edge) {
+  heavyStrikeRootIncludesSkill: {
+    userSkillDefinitionsRoot : includesUserSkill : heavyStrike
+  },
+
+  heavyStrikeHasDefinition: {
+    heavyStrike : hasDefinition : heavyStrikeDefinition
+  },
+
+  heavyStrikeHasSkillPointCost: {
+    heavyStrike : hasCost : heavyStrikeSkillPointCost
+  },
+
+  heavyStrikeHasHealthPointCost: {
+    heavyStrike : hasCost : heavyStrikeHealthPointCost
+  },
+
+  heavyStrikeHasStrengthRequirement1: {
+    heavyStrike : hasRequirement : heavyStrikeStrengthRequirement1
+  },
+
+  heavyStrikeHasDamageEffect: {
+    heavyStrike : hasEffect : heavyStrikeDamageEffect
+  },
+
+  firstAidRootIncludesSkill: {
+    userSkillDefinitionsRoot : includesUserSkill : firstAid
+  },
+
+  firstAidHasDefinition: {
+    firstAid : hasDefinition : firstAidDefinition
+  },
+
+  firstAidHasSkillPointCost: {
+    firstAid : hasCost : firstAidSkillPointCost
+  },
+
+  firstAidHasHealthPointCost: {
+    firstAid : hasCost : firstAidHealthPointCost
+  },
+
+  firstAidHasIntelligenceRequirement1: {
+    firstAid : hasRequirement : firstAidIntelligenceRequirement1
+  },
+
+  firstAidHasLevelRequirement: {
+    firstAid : hasRequirement : firstAidLevelRequirement
+  },
+
+  firstAidHasHealEffect: {
+    firstAid : hasEffect : firstAidHealEffect
+  }
+}
+
+-> @graft(meta) {
+  userSkillDefinitionsRoot.generatedBy: "python",
+
+  userSkillDefinitionsRoot.boundary: "Python supplies raw user-authored skill definitions. TAT owns interpretation.",
+
+  userSkillDefinitionsRoot.skillCount: 2
+}

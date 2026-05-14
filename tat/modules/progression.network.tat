@@ -1,0 +1,371 @@
+// -----------------------------------------------------------------------------
+// progression.network.tat
+// Character + Skill Builder
+//
+// Pass 6 goal:
+// Connect the standalone semantic domains through a TAT network.
+//
+// This file does not evaluate unlocks yet.
+// This file does not inject character save data yet.
+// It only defines cross-graph topology:
+// - characterGraph <-> statsGraph
+// - statsGraph <-> combatGraph
+// - characterGraph <-> skillsGraph
+// - skillsGraph <-> unlockRulesGraph
+// - characterGraph <-> unlockRulesGraph
+// -----------------------------------------------------------------------------
+
+import {
+  characterGraph,
+} from "./character.graph.tat"
+
+import {
+  statsGraph,
+} from "./stats.graph.tat"
+
+import {
+  combatGraph,
+} from "./combat.graph.tat"
+
+import {
+  skillsGraph,
+} from "./skills.graph.tat"
+
+import {
+  unlockRulesGraph,
+} from "./unlock.rules.tat"
+
+// -----------------------------------------------------------------------------
+// Network contexts
+// -----------------------------------------------------------------------------
+
+characterStatsContext := <context {
+  id: characterStatsContext,
+  key: "character:stats",
+  label: "Character Stats Context",
+  description: "Connects the character domain to the stat domain.",
+}>
+
+statCombatContext := <context {
+  id: statCombatContext,
+  key: "stats:combat",
+  label: "Stat Combat Context",
+  description: "Connects stat meaning to combat concepts.",
+}>
+
+characterSkillsContext := <context {
+  id: characterSkillsContext,
+  key: "character:skills",
+  label: "Character Skills Context",
+  description: "Connects the character domain to the skill domain.",
+}>
+
+skillRequirementsContext := <context {
+  id: skillRequirementsContext,
+  key: "skills:requirements",
+  label: "Skill Requirements Context",
+  description: "Connects authored skills to their unlock requirements.",
+}>
+
+characterUnlockContext := <context {
+  id: characterUnlockContext,
+  key: "character:unlockState",
+  label: "Character Unlock State Context",
+  description: "Connects character progression state to unlock-rule interpretation.",
+}>
+
+// -----------------------------------------------------------------------------
+// Network hooks
+// -----------------------------------------------------------------------------
+
+characterStatsOutHook := <hook {
+  id: characterStatsOutHook,
+  key: "character:stats",
+  direction: "out",
+  label: "Character Stats Out Hook",
+  description: "The character graph exposes character stat ownership.",
+}>
+
+statsCharacterInHook := <hook {
+  id: statsCharacterInHook,
+  key: "character:stats",
+  direction: "in",
+  label: "Stats Character In Hook",
+  description: "The stats graph receives character stat ownership context.",
+}>
+
+statsCombatOutHook := <hook {
+  id: statsCombatOutHook,
+  key: "stats:combat",
+  direction: "out",
+  label: "Stats Combat Out Hook",
+  description: "The stats graph exposes stat-to-combat semantic meaning.",
+}>
+
+combatStatsInHook := <hook {
+  id: combatStatsInHook,
+  key: "stats:combat",
+  direction: "in",
+  label: "Combat Stats In Hook",
+  description: "The combat graph receives stat contribution context.",
+}>
+
+characterSkillsOutHook := <hook {
+  id: characterSkillsOutHook,
+  key: "character:skills",
+  direction: "out",
+  label: "Character Skills Out Hook",
+  description: "The character graph exposes the character skill profile.",
+}>
+
+skillsCharacterInHook := <hook {
+  id: skillsCharacterInHook,
+  key: "character:skills",
+  direction: "in",
+  label: "Skills Character In Hook",
+  description: "The skills graph receives character skill profile context.",
+}>
+
+skillsRequirementsOutHook := <hook {
+  id: skillsRequirementsOutHook,
+  key: "skills:requirements",
+  direction: "out",
+  label: "Skills Requirements Out Hook",
+  description: "The skills graph exposes skill identity and skill-tree structure.",
+}>
+
+unlockRulesSkillsInHook := <hook {
+  id: unlockRulesSkillsInHook,
+  key: "skills:requirements",
+  direction: "in",
+  label: "Unlock Rules Skills In Hook",
+  description: "The unlock rules graph receives skill requirement context.",
+}>
+
+characterUnlockOutHook := <hook {
+  id: characterUnlockOutHook,
+  key: "character:unlockState",
+  direction: "out",
+  label: "Character Unlock Out Hook",
+  description: "The character graph exposes progression state for unlock interpretation.",
+}>
+
+unlockRulesCharacterInHook := <hook {
+  id: unlockRulesCharacterInHook,
+  key: "character:unlockState",
+  direction: "in",
+  label: "Unlock Rules Character In Hook",
+  description: "The unlock rules graph receives character progression state.",
+}>
+
+// -----------------------------------------------------------------------------
+// Network bridges
+// -----------------------------------------------------------------------------
+
+characterStatsBridge := <bridge {
+  id: characterStatsBridge,
+  from: characterGraph,
+  to: statsGraph,
+  context: characterStatsContext,
+  hooks: [
+    characterStatsOutHook,
+    statsCharacterInHook,
+  ],
+}>
+
+statCombatBridge := <bridge {
+  id: statCombatBridge,
+  from: statsGraph,
+  to: combatGraph,
+  context: statCombatContext,
+  hooks: [
+    statsCombatOutHook,
+    combatStatsInHook,
+  ],
+}>
+
+characterSkillsBridge := <bridge {
+  id: characterSkillsBridge,
+  from: characterGraph,
+  to: skillsGraph,
+  context: characterSkillsContext,
+  hooks: [
+    characterSkillsOutHook,
+    skillsCharacterInHook,
+  ],
+}>
+
+skillRequirementsBridge := <bridge {
+  id: skillRequirementsBridge,
+  from: skillsGraph,
+  to: unlockRulesGraph,
+  context: skillRequirementsContext,
+  hooks: [
+    skillsRequirementsOutHook,
+    unlockRulesSkillsInHook,
+  ],
+}>
+
+characterUnlockBridge := <bridge {
+  id: characterUnlockBridge,
+  from: characterGraph,
+  to: unlockRulesGraph,
+  context: characterUnlockContext,
+  hooks: [
+    characterUnlockOutHook,
+    unlockRulesCharacterInHook,
+  ],
+}>
+
+// -----------------------------------------------------------------------------
+// Progression network
+// -----------------------------------------------------------------------------
+
+progressionNetwork := @seed(network) {
+  graphs: [
+    characterGraph,
+    statsGraph,
+    combatGraph,
+    skillsGraph,
+    unlockRulesGraph,
+  ],
+
+  bridges: [
+    characterStatsBridge,
+    statCombatBridge,
+    characterSkillsBridge,
+    skillRequirementsBridge,
+    characterUnlockBridge,
+  ],
+
+  contexts: [
+    characterStatsContext,
+    statCombatContext,
+    characterSkillsContext,
+    skillRequirementsContext,
+    characterUnlockContext,
+  ],
+
+  hooks: [
+    characterStatsOutHook,
+    statsCharacterInHook,
+
+    statsCombatOutHook,
+    combatStatsInHook,
+
+    characterSkillsOutHook,
+    skillsCharacterInHook,
+
+    skillsRequirementsOutHook,
+    unlockRulesSkillsInHook,
+
+    characterUnlockOutHook,
+    unlockRulesCharacterInHook,
+  ],
+
+  state: {
+    characterStatsBridge: active,
+    statCombatBridge: active,
+    characterSkillsBridge: active,
+    skillRequirementsBridge: active,
+    characterUnlockBridge: active,
+  },
+
+  meta: {
+    purpose: "Connect character, stats, combat, skills, and unlock-rule domains without flattening them into one graph.",
+    owner: tat,
+    dataBoundary: "This network defines cross-graph topology only. Python owns raw values; later TAT passes interpret injected state.",
+  },
+
+  anchor: characterGraph,
+}
+
+// -----------------------------------------------------------------------------
+// Optional network query checks
+// -----------------------------------------------------------------------------
+
+hasProgressionNetworkTopology := @query(network) {
+  target: progressionNetwork,
+  graphs: [
+    characterGraph,
+    statsGraph,
+    combatGraph,
+    skillsGraph,
+    unlockRulesGraph,
+  ],
+  bridges: [
+    characterStatsBridge,
+    statCombatBridge,
+    characterSkillsBridge,
+    skillRequirementsBridge,
+    characterUnlockBridge,
+  ],
+  contexts: [
+    characterStatsContext,
+    statCombatContext,
+    characterSkillsContext,
+    skillRequirementsContext,
+    characterUnlockContext,
+  ],
+  hooks: [
+    characterStatsOutHook,
+    statsCharacterInHook,
+
+    statsCombatOutHook,
+    combatStatsInHook,
+
+    characterSkillsOutHook,
+    skillsCharacterInHook,
+
+    skillsRequirementsOutHook,
+    unlockRulesSkillsInHook,
+
+    characterUnlockOutHook,
+    unlockRulesCharacterInHook,
+  ],
+  anchor: characterGraph,
+}
+
+// -----------------------------------------------------------------------------
+// Optional topology projection
+// -----------------------------------------------------------------------------
+
+progressionTopologyProjection := @project(network) {
+  format: topology,
+}
+
+progressionTopologyView := progressionNetwork <> progressionTopologyProjection(progressionNetwork)
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  characterStatsContext,
+  statCombatContext,
+  characterSkillsContext,
+  skillRequirementsContext,
+  characterUnlockContext,
+
+  characterStatsOutHook,
+  statsCharacterInHook,
+  statsCombatOutHook,
+  combatStatsInHook,
+  characterSkillsOutHook,
+  skillsCharacterInHook,
+  skillsRequirementsOutHook,
+  unlockRulesSkillsInHook,
+  characterUnlockOutHook,
+  unlockRulesCharacterInHook,
+
+  characterStatsBridge,
+  statCombatBridge,
+  characterSkillsBridge,
+  skillRequirementsBridge,
+  characterUnlockBridge,
+
+  progressionNetwork,
+  hasProgressionNetworkTopology,
+  progressionTopologyProjection,
+  progressionTopologyView,
+}

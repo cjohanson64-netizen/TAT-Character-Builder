@@ -1,0 +1,429 @@
+// -----------------------------------------------------------------------------
+// skills.graph.tat
+// Character + Skill Builder
+//
+// Pass 4 goal:
+// Define the skill graph as its own semantic domain.
+//
+// This file does not evaluate unlock requirements yet.
+// This file does not read injected stat values yet.
+// It only defines the skill nodes, skill categories, and prerequisite paths.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Skills root
+// -----------------------------------------------------------------------------
+
+skillsRoot := <node {
+  id: skillsRoot,
+  label: "Skills",
+  kind: skillDomain,
+  description: "Root node for the character skill system.",
+}>
+
+// -----------------------------------------------------------------------------
+// Skill category nodes
+// -----------------------------------------------------------------------------
+
+physicalOffenseSkills := <node {
+  id: physicalOffenseSkills,
+  label: "Physical Offense Skills",
+  kind: skillCategory,
+  category: physical,
+  role: offense,
+  description: "Skills that improve physical damage output.",
+}>
+
+physicalDefenseSkills := <node {
+  id: physicalDefenseSkills,
+  label: "Physical Defense Skills",
+  kind: skillCategory,
+  category: physical,
+  role: defense,
+  description: "Skills that improve physical damage avoidance or mitigation.",
+}>
+
+magicalOffenseSkills := <node {
+  id: magicalOffenseSkills,
+  label: "Magical Offense Skills",
+  kind: skillCategory,
+  category: magical,
+  role: offense,
+  description: "Skills that improve magical damage output.",
+}>
+
+magicalDefenseSkills := <node {
+  id: magicalDefenseSkills,
+  label: "Magical Defense Skills",
+  kind: skillCategory,
+  category: magical,
+  role: defense,
+  description: "Skills that improve magical damage avoidance or mitigation.",
+}>
+
+tempoSkills := <node {
+  id: tempoSkills,
+  label: "Tempo Skills",
+  kind: skillCategory,
+  category: tempo,
+  role: speed,
+  description: "Skills that improve turn order and combat timing.",
+}>
+
+precisionSkills := <node {
+  id: precisionSkills,
+  label: "Precision Skills",
+  kind: skillCategory,
+  category: precision,
+  role: accuracy,
+  description: "Skills that improve attack accuracy or weapon handling.",
+}>
+
+// -----------------------------------------------------------------------------
+// Strength skill path
+// -----------------------------------------------------------------------------
+
+heavyStrike := <node {
+  id: heavyStrike,
+  label: "Heavy Strike",
+  kind: skill,
+  category: physical,
+  role: offense,
+  tier: 1,
+  description: "A basic physical attack upgrade that rewards high strength.",
+}>
+
+powerSwing := <node {
+  id: powerSwing,
+  label: "Power Swing",
+  kind: skill,
+  category: physical,
+  role: offense,
+  tier: 2,
+  description: "An advanced physical attack upgrade that builds on Heavy Strike.",
+}>
+
+// -----------------------------------------------------------------------------
+// Defense skill path
+// -----------------------------------------------------------------------------
+
+shieldGuard := <node {
+  id: shieldGuard,
+  label: "Shield Guard",
+  kind: skill,
+  category: physical,
+  role: defense,
+  tier: 1,
+  description: "A basic physical defense skill that improves guard capability.",
+}>
+
+ironWall := <node {
+  id: ironWall,
+  label: "Iron Wall",
+  kind: skill,
+  category: physical,
+  role: defense,
+  tier: 2,
+  description: "An advanced physical defense skill that builds on Shield Guard.",
+}>
+
+// -----------------------------------------------------------------------------
+// Intelligence skill path
+// -----------------------------------------------------------------------------
+
+arcaneBolt := <node {
+  id: arcaneBolt,
+  label: "Arcane Bolt",
+  kind: skill,
+  category: magical,
+  role: offense,
+  tier: 1,
+  description: "A basic magical attack skill that rewards high intelligence.",
+}>
+
+spellSurge := <node {
+  id: spellSurge,
+  label: "Spell Surge",
+  kind: skill,
+  category: magical,
+  role: offense,
+  tier: 2,
+  description: "An advanced magical attack skill that builds on Arcane Bolt.",
+}>
+
+// -----------------------------------------------------------------------------
+// Resistance skill path
+// -----------------------------------------------------------------------------
+
+wardingMind := <node {
+  id: wardingMind,
+  label: "Warding Mind",
+  kind: skill,
+  category: magical,
+  role: defense,
+  tier: 1,
+  description: "A basic magical defense skill that improves resistance.",
+}>
+
+spellGuard := <node {
+  id: spellGuard,
+  label: "Spell Guard",
+  kind: skill,
+  category: magical,
+  role: defense,
+  tier: 2,
+  description: "An advanced magical defense skill that builds on Warding Mind.",
+}>
+
+// -----------------------------------------------------------------------------
+// Speed skill path
+// -----------------------------------------------------------------------------
+
+quickStep := <node {
+  id: quickStep,
+  label: "Quick Step",
+  kind: skill,
+  category: tempo,
+  role: evasion,
+  tier: 1,
+  description: "A basic speed skill that improves movement and avoidance.",
+}>
+
+initiative := <node {
+  id: initiative,
+  label: "Initiative",
+  kind: skill,
+  category: tempo,
+  role: turnOrder,
+  tier: 2,
+  description: "An advanced tempo skill that builds on Quick Step.",
+}>
+
+// -----------------------------------------------------------------------------
+// Dexterity skill path
+// -----------------------------------------------------------------------------
+
+preciseShot := <node {
+  id: preciseShot,
+  label: "Precise Shot",
+  kind: skill,
+  category: precision,
+  role: accuracy,
+  tier: 1,
+  description: "A basic precision skill that improves attack accuracy.",
+}>
+
+weaponMastery := <node {
+  id: weaponMastery,
+  label: "Weapon Mastery",
+  kind: skill,
+  category: precision,
+  role: weaponAccess,
+  tier: 2,
+  description: "An advanced precision skill that improves weapon wieldability.",
+}>
+
+// -----------------------------------------------------------------------------
+// Skill domain inclusion edges
+// -----------------------------------------------------------------------------
+
+skillsIncludesPhysicalOffense := { skillsRoot : includes : physicalOffenseSkills }
+skillsIncludesPhysicalDefense := { skillsRoot : includes : physicalDefenseSkills }
+skillsIncludesMagicalOffense := { skillsRoot : includes : magicalOffenseSkills }
+skillsIncludesMagicalDefense := { skillsRoot : includes : magicalDefenseSkills }
+skillsIncludesTempo := { skillsRoot : includes : tempoSkills }
+skillsIncludesPrecision := { skillsRoot : includes : precisionSkills }
+
+// -----------------------------------------------------------------------------
+// Skill category membership edges
+// -----------------------------------------------------------------------------
+
+physicalOffenseIncludesHeavyStrike := { physicalOffenseSkills : includes : heavyStrike }
+physicalOffenseIncludesPowerSwing := { physicalOffenseSkills : includes : powerSwing }
+
+physicalDefenseIncludesShieldGuard := { physicalDefenseSkills : includes : shieldGuard }
+physicalDefenseIncludesIronWall := { physicalDefenseSkills : includes : ironWall }
+
+magicalOffenseIncludesArcaneBolt := { magicalOffenseSkills : includes : arcaneBolt }
+magicalOffenseIncludesSpellSurge := { magicalOffenseSkills : includes : spellSurge }
+
+magicalDefenseIncludesWardingMind := { magicalDefenseSkills : includes : wardingMind }
+magicalDefenseIncludesSpellGuard := { magicalDefenseSkills : includes : spellGuard }
+
+tempoIncludesQuickStep := { tempoSkills : includes : quickStep }
+tempoIncludesInitiative := { tempoSkills : includes : initiative }
+
+precisionIncludesPreciseShot := { precisionSkills : includes : preciseShot }
+precisionIncludesWeaponMastery := { precisionSkills : includes : weaponMastery }
+
+// -----------------------------------------------------------------------------
+// Skill prerequisite / path edges
+// These describe skill-tree structure, not current unlock status.
+// -----------------------------------------------------------------------------
+
+heavyStrikeUnlocksPathToPowerSwing := { heavyStrike : unlocksPathTo : powerSwing }
+
+shieldGuardUnlocksPathToIronWall := { shieldGuard : unlocksPathTo : ironWall }
+
+arcaneBoltUnlocksPathToSpellSurge := { arcaneBolt : unlocksPathTo : spellSurge }
+
+wardingMindUnlocksPathToSpellGuard := { wardingMind : unlocksPathTo : spellGuard }
+
+quickStepUnlocksPathToInitiative := { quickStep : unlocksPathTo : initiative }
+
+preciseShotUnlocksPathToWeaponMastery := { preciseShot : unlocksPathTo : weaponMastery }
+
+// -----------------------------------------------------------------------------
+// Skill tier edges
+// -----------------------------------------------------------------------------
+
+heavyStrikeBelongsToTierOne := { heavyStrike : belongsToTier : tierOne }
+shieldGuardBelongsToTierOne := { shieldGuard : belongsToTier : tierOne }
+arcaneBoltBelongsToTierOne := { arcaneBolt : belongsToTier : tierOne }
+wardingMindBelongsToTierOne := { wardingMind : belongsToTier : tierOne }
+quickStepBelongsToTierOne := { quickStep : belongsToTier : tierOne }
+preciseShotBelongsToTierOne := { preciseShot : belongsToTier : tierOne }
+
+powerSwingBelongsToTierTwo := { powerSwing : belongsToTier : tierTwo }
+ironWallBelongsToTierTwo := { ironWall : belongsToTier : tierTwo }
+spellSurgeBelongsToTierTwo := { spellSurge : belongsToTier : tierTwo }
+spellGuardBelongsToTierTwo := { spellGuard : belongsToTier : tierTwo }
+initiativeBelongsToTierTwo := { initiative : belongsToTier : tierTwo }
+weaponMasteryBelongsToTierTwo := { weaponMastery : belongsToTier : tierTwo }
+
+// -----------------------------------------------------------------------------
+// Tier nodes
+// -----------------------------------------------------------------------------
+
+tierOne := <node {
+  id: tierOne,
+  label: "Tier One",
+  kind: skillTier,
+  tier: 1,
+  description: "Entry-level skills.",
+}>
+
+tierTwo := <node {
+  id: tierTwo,
+  label: "Tier Two",
+  kind: skillTier,
+  tier: 2,
+  description: "Advanced skills that usually depend on tier-one skills.",
+}>
+
+// -----------------------------------------------------------------------------
+// Skills graph
+// -----------------------------------------------------------------------------
+
+skillsGraph := @seed(graph) {
+  node: [
+    skillsRoot,
+
+    physicalOffenseSkills,
+    physicalDefenseSkills,
+    magicalOffenseSkills,
+    magicalDefenseSkills,
+    tempoSkills,
+    precisionSkills,
+
+    tierOne,
+    tierTwo,
+
+    heavyStrike,
+    powerSwing,
+    shieldGuard,
+    ironWall,
+    arcaneBolt,
+    spellSurge,
+    wardingMind,
+    spellGuard,
+    quickStep,
+    initiative,
+    preciseShot,
+    weaponMastery,
+  ],
+
+  edge: [
+    skillsIncludesPhysicalOffense,
+    skillsIncludesPhysicalDefense,
+    skillsIncludesMagicalOffense,
+    skillsIncludesMagicalDefense,
+    skillsIncludesTempo,
+    skillsIncludesPrecision,
+
+    physicalOffenseIncludesHeavyStrike,
+    physicalOffenseIncludesPowerSwing,
+    physicalDefenseIncludesShieldGuard,
+    physicalDefenseIncludesIronWall,
+    magicalOffenseIncludesArcaneBolt,
+    magicalOffenseIncludesSpellSurge,
+    magicalDefenseIncludesWardingMind,
+    magicalDefenseIncludesSpellGuard,
+    tempoIncludesQuickStep,
+    tempoIncludesInitiative,
+    precisionIncludesPreciseShot,
+    precisionIncludesWeaponMastery,
+
+    heavyStrikeUnlocksPathToPowerSwing,
+    shieldGuardUnlocksPathToIronWall,
+    arcaneBoltUnlocksPathToSpellSurge,
+    wardingMindUnlocksPathToSpellGuard,
+    quickStepUnlocksPathToInitiative,
+    preciseShotUnlocksPathToWeaponMastery,
+
+    heavyStrikeBelongsToTierOne,
+    shieldGuardBelongsToTierOne,
+    arcaneBoltBelongsToTierOne,
+    wardingMindBelongsToTierOne,
+    quickStepBelongsToTierOne,
+    preciseShotBelongsToTierOne,
+
+    powerSwingBelongsToTierTwo,
+    ironWallBelongsToTierTwo,
+    spellSurgeBelongsToTierTwo,
+    spellGuardBelongsToTierTwo,
+    initiativeBelongsToTierTwo,
+    weaponMasteryBelongsToTierTwo,
+  ],
+
+  meta: {
+    purpose: "Define the canonical skill domain and skill-tree path structure.",
+    owner: tat,
+    dataBoundary: "No unlocked skill state is stored here. Python injects acquired skills later; TAT interprets requirements later.",
+  },
+
+  root: skillsRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  skillsRoot,
+
+  physicalOffenseSkills,
+  physicalDefenseSkills,
+  magicalOffenseSkills,
+  magicalDefenseSkills,
+  tempoSkills,
+  precisionSkills,
+
+  tierOne,
+  tierTwo,
+
+  heavyStrike,
+  powerSwing,
+  shieldGuard,
+  ironWall,
+  arcaneBolt,
+  spellSurge,
+  wardingMind,
+  spellGuard,
+  quickStep,
+  initiative,
+  preciseShot,
+  weaponMastery,
+
+  skillsGraph,
+}

@@ -1,0 +1,647 @@
+// -----------------------------------------------------------------------------
+// runtime-data.contract.tat
+// Character + Skill Builder
+//
+// Pass 9 goal:
+// Define the Python-owned runtime data contract that TAT expects to receive.
+//
+// This file does not inject live values yet.
+// This file does not mutate character state yet.
+// This file does not calculate unlock status yet.
+//
+// It defines:
+// - character data contract
+// - stat values contract
+// - unlocked skills contract
+// - runtime action contract
+// - injection boundary vocabulary
+//
+// Boundary rule:
+// Python owns raw data.
+// TAT owns the meaning and interpretation of that data.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Runtime data contract root
+// -----------------------------------------------------------------------------
+
+runtimeDataContractRoot := <node {
+  id: runtimeDataContractRoot,
+  label: "Runtime Data Contract",
+  kind: contractDomain,
+  owner: tat,
+  sourceOwner: python,
+  description: "Root node for Python-owned runtime data expected by the TAT semantic layer.",
+}>
+
+// -----------------------------------------------------------------------------
+// Data source / boundary nodes
+// -----------------------------------------------------------------------------
+
+pythonRuntimeSource := <node {
+  id: pythonRuntimeSource,
+  label: "Python Runtime Source",
+  kind: dataSource,
+  owner: python,
+  description: "The Python backend owns live character data, save data, API state, and injected runtime values.",
+}>
+
+tatSemanticReceiver := <node {
+  id: tatSemanticReceiver,
+  label: "TAT Semantic Receiver",
+  kind: dataReceiver,
+  owner: tat,
+  description: "The TAT layer receives Python-owned facts and interprets them semantically.",
+}>
+
+runtimeInjectionBoundary := <node {
+  id: runtimeInjectionBoundary,
+  label: "Runtime Injection Boundary",
+  kind: dataBoundary,
+  from: python,
+  to: tat,
+  description: "Boundary where Python runtime facts enter the TAT semantic layer.",
+}>
+
+// -----------------------------------------------------------------------------
+// Contract group nodes
+// -----------------------------------------------------------------------------
+
+characterDataContract := <node {
+  id: characterDataContract,
+  label: "Character Data Contract",
+  kind: dataContract,
+  owner: python,
+  description: "Contract for character identity and progression values supplied by Python.",
+}>
+
+statValuesContract := <node {
+  id: statValuesContract,
+  label: "Stat Values Contract",
+  kind: dataContract,
+  owner: python,
+  description: "Contract for live stat values supplied by Python.",
+}>
+
+unlockedSkillsContract := <node {
+  id: unlockedSkillsContract,
+  label: "Unlocked Skills Contract",
+  kind: dataContract,
+  owner: python,
+  description: "Contract for acquired skill ids supplied by Python.",
+}>
+
+runtimeActionContract := <node {
+  id: runtimeActionContract,
+  label: "Runtime Action Contract",
+  kind: dataContract,
+  owner: python,
+  description: "Contract for player/user actions that Python receives and applies before TAT reinterprets state.",
+}>
+
+runtimeProjectionRequestContract := <node {
+  id: runtimeProjectionRequestContract,
+  label: "Runtime Projection Request Contract",
+  kind: dataContract,
+  owner: react,
+  description: "Contract for React requesting TAT-projected semantic views through Python.",
+}>
+
+// -----------------------------------------------------------------------------
+// Character data field nodes
+// -----------------------------------------------------------------------------
+
+characterIdField := <node {
+  id: characterIdField,
+  label: "Character ID Field",
+  kind: contractField,
+  field: id,
+  valueType: string,
+  required: true,
+  description: "Stable character identifier owned by Python.",
+}>
+
+characterNameField := <node {
+  id: characterNameField,
+  label: "Character Name Field",
+  kind: contractField,
+  field: name,
+  valueType: string,
+  required: true,
+  description: "Display name for the character.",
+}>
+
+characterLevelField := <node {
+  id: characterLevelField,
+  label: "Character Level Field",
+  kind: contractField,
+  field: level,
+  valueType: number,
+  required: true,
+  minimum: 1,
+  description: "Current character level.",
+}>
+
+characterXpField := <node {
+  id: characterXpField,
+  label: "Character XP Field",
+  kind: contractField,
+  field: xp,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Current character experience points.",
+}>
+
+// -----------------------------------------------------------------------------
+// Stat value field nodes
+// -----------------------------------------------------------------------------
+
+strengthValueField := <node {
+  id: strengthValueField,
+  label: "Strength Value Field",
+  kind: contractField,
+  field: strength,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Live Strength value supplied by Python.",
+}>
+
+defenseValueField := <node {
+  id: defenseValueField,
+  label: "Defense Value Field",
+  kind: contractField,
+  field: defense,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Live Defense value supplied by Python.",
+}>
+
+intelligenceValueField := <node {
+  id: intelligenceValueField,
+  label: "Intelligence Value Field",
+  kind: contractField,
+  field: intelligence,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Live Intelligence value supplied by Python.",
+}>
+
+resistanceValueField := <node {
+  id: resistanceValueField,
+  label: "Resistance Value Field",
+  kind: contractField,
+  field: resistance,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Live Resistance value supplied by Python.",
+}>
+
+speedValueField := <node {
+  id: speedValueField,
+  label: "Speed Value Field",
+  kind: contractField,
+  field: speed,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Live Speed value supplied by Python.",
+}>
+
+dexterityValueField := <node {
+  id: dexterityValueField,
+  label: "Dexterity Value Field",
+  kind: contractField,
+  field: dexterity,
+  valueType: number,
+  required: true,
+  minimum: 0,
+  description: "Live Dexterity value supplied by Python.",
+}>
+
+// -----------------------------------------------------------------------------
+// Unlocked skills field nodes
+// -----------------------------------------------------------------------------
+
+unlockedSkillIdsField := <node {
+  id: unlockedSkillIdsField,
+  label: "Unlocked Skill IDs Field",
+  kind: contractField,
+  field: unlockedSkillIds,
+  valueType: list,
+  itemType: skillId,
+  required: true,
+  description: "List of acquired skill ids supplied by Python.",
+}>
+
+unlockedSkillIdField := <node {
+  id: unlockedSkillIdField,
+  label: "Unlocked Skill ID Field",
+  kind: contractField,
+  field: skillId,
+  valueType: string,
+  required: true,
+  description: "A single acquired skill identifier.",
+}>
+
+// -----------------------------------------------------------------------------
+// Runtime action field nodes
+// -----------------------------------------------------------------------------
+
+runtimeActionTypeField := <node {
+  id: runtimeActionTypeField,
+  label: "Runtime Action Type Field",
+  kind: contractField,
+  field: actionType,
+  valueType: string,
+  required: true,
+  description: "The type of runtime action requested by React and applied by Python.",
+}>
+
+runtimeActionTargetField := <node {
+  id: runtimeActionTargetField,
+  label: "Runtime Action Target Field",
+  kind: contractField,
+  field: target,
+  valueType: string,
+  required: true,
+  description: "The stat, skill, or character target affected by the runtime action.",
+}>
+
+runtimeActionAmountField := <node {
+  id: runtimeActionAmountField,
+  label: "Runtime Action Amount Field",
+  kind: contractField,
+  field: amount,
+  valueType: number,
+  required: false,
+  minimum: 0,
+  description: "Optional numeric amount applied by a runtime action.",
+}>
+
+// -----------------------------------------------------------------------------
+// Runtime action type nodes
+// -----------------------------------------------------------------------------
+
+trainStatAction := <node {
+  id: trainStatAction,
+  label: "Train Stat Action",
+  kind: runtimeActionType,
+  owner: python,
+  description: "Python increases a target stat, then TAT reinterprets the updated stat facts.",
+}>
+
+unlockSkillAction := <node {
+  id: unlockSkillAction,
+  label: "Unlock Skill Action",
+  kind: runtimeActionType,
+  owner: python,
+  description: "Python records an acquired skill after TAT determines that the skill is unlockable.",
+}>
+
+resetCharacterAction := <node {
+  id: resetCharacterAction,
+  label: "Reset Character Action",
+  kind: runtimeActionType,
+  owner: python,
+  description: "Python resets character runtime values to a starter/default state.",
+}>
+
+// -----------------------------------------------------------------------------
+// Projection request field nodes
+// -----------------------------------------------------------------------------
+
+projectionRequestViewField := <node {
+  id: projectionRequestViewField,
+  label: "Projection Request View Field",
+  kind: contractField,
+  field: view,
+  valueType: string,
+  required: true,
+  description: "The semantic projection view requested by React.",
+}>
+
+projectionRequestDebugField := <node {
+  id: projectionRequestDebugField,
+  label: "Projection Request Debug Field",
+  kind: contractField,
+  field: includeDebug,
+  valueType: boolean,
+  required: false,
+  description: "Whether debug semantic information should be included in the response.",
+}>
+
+// -----------------------------------------------------------------------------
+// Contract inclusion edges
+// -----------------------------------------------------------------------------
+
+runtimeContractIncludesCharacterData := {
+  runtimeDataContractRoot : includesContract : characterDataContract
+}
+
+runtimeContractIncludesStatValues := {
+  runtimeDataContractRoot : includesContract : statValuesContract
+}
+
+runtimeContractIncludesUnlockedSkills := {
+  runtimeDataContractRoot : includesContract : unlockedSkillsContract
+}
+
+runtimeContractIncludesRuntimeActions := {
+  runtimeDataContractRoot : includesContract : runtimeActionContract
+}
+
+runtimeContractIncludesProjectionRequests := {
+  runtimeDataContractRoot : includesContract : runtimeProjectionRequestContract
+}
+
+// -----------------------------------------------------------------------------
+// Boundary edges
+// -----------------------------------------------------------------------------
+
+pythonSourceFeedsInjectionBoundary := {
+  pythonRuntimeSource : feeds : runtimeInjectionBoundary
+}
+
+runtimeInjectionBoundaryFeedsTatReceiver := {
+  runtimeInjectionBoundary : feeds : tatSemanticReceiver
+}
+
+tatReceiverInterpretsRuntimeContract := {
+  tatSemanticReceiver : interprets : runtimeDataContractRoot
+}
+
+// -----------------------------------------------------------------------------
+// Character data contract field edges
+// -----------------------------------------------------------------------------
+
+characterDataRequiresId := { characterDataContract : requiresField : characterIdField }
+
+characterDataRequiresName := { characterDataContract : requiresField : characterNameField }
+
+characterDataRequiresLevel := { characterDataContract : requiresField : characterLevelField }
+
+characterDataRequiresXp := { characterDataContract : requiresField : characterXpField }
+
+// -----------------------------------------------------------------------------
+// Stat values contract field edges
+// -----------------------------------------------------------------------------
+
+statValuesRequiresStrength := { statValuesContract : requiresField : strengthValueField }
+
+statValuesRequiresDefense := { statValuesContract : requiresField : defenseValueField }
+
+statValuesRequiresIntelligence := { statValuesContract : requiresField : intelligenceValueField }
+
+statValuesRequiresResistance := { statValuesContract : requiresField : resistanceValueField }
+
+statValuesRequiresSpeed := { statValuesContract : requiresField : speedValueField }
+
+statValuesRequiresDexterity := { statValuesContract : requiresField : dexterityValueField }
+
+// -----------------------------------------------------------------------------
+// Unlocked skills contract field edges
+// -----------------------------------------------------------------------------
+
+unlockedSkillsRequiresSkillIds := {
+  unlockedSkillsContract : requiresField : unlockedSkillIdsField
+}
+
+unlockedSkillIdsContainsSkillId := {
+  unlockedSkillIdsField : containsItem : unlockedSkillIdField
+}
+
+// -----------------------------------------------------------------------------
+// Runtime action contract field edges
+// -----------------------------------------------------------------------------
+
+runtimeActionRequiresType := {
+  runtimeActionContract : requiresField : runtimeActionTypeField
+}
+
+runtimeActionRequiresTarget := {
+  runtimeActionContract : requiresField : runtimeActionTargetField
+}
+
+runtimeActionCanIncludeAmount := {
+  runtimeActionContract : optionalField : runtimeActionAmountField
+}
+
+// -----------------------------------------------------------------------------
+// Runtime action type edges
+// -----------------------------------------------------------------------------
+
+runtimeActionAllowsTrainStat := {
+  runtimeActionContract : allowsAction : trainStatAction
+}
+
+runtimeActionAllowsUnlockSkill := {
+  runtimeActionContract : allowsAction : unlockSkillAction
+}
+
+runtimeActionAllowsResetCharacter := {
+  runtimeActionContract : allowsAction : resetCharacterAction
+}
+
+trainStatActionTargetsStat := {
+  trainStatAction : targetsContract : statValuesContract
+}
+
+unlockSkillActionTargetsUnlockedSkills := {
+  unlockSkillAction : targetsContract : unlockedSkillsContract
+}
+
+resetCharacterActionTargetsRuntimeData := {
+  resetCharacterAction : targetsContract : runtimeDataContractRoot
+}
+
+// -----------------------------------------------------------------------------
+// Projection request contract field edges
+// -----------------------------------------------------------------------------
+
+projectionRequestRequiresView := {
+  runtimeProjectionRequestContract : requiresField : projectionRequestViewField
+}
+
+projectionRequestCanIncludeDebug := {
+  runtimeProjectionRequestContract : optionalField : projectionRequestDebugField
+}
+
+// -----------------------------------------------------------------------------
+// Contract ownership edges
+// -----------------------------------------------------------------------------
+
+characterDataOwnedByPython := { characterDataContract : ownedBy : pythonRuntimeSource }
+
+statValuesOwnedByPython := { statValuesContract : ownedBy : pythonRuntimeSource }
+
+unlockedSkillsOwnedByPython := { unlockedSkillsContract : ownedBy : pythonRuntimeSource }
+
+runtimeActionsAppliedByPython := { runtimeActionContract : appliedBy : pythonRuntimeSource }
+
+projectionRequestsOriginateFromReact := {
+  runtimeProjectionRequestContract : requestedBy : reactRenderSource
+}
+
+reactRenderSource := <node {
+  id: reactRenderSource,
+  label: "React Render Source",
+  kind: dataSource,
+  owner: react,
+  description: "The React UI requests semantic projections and displays the returned views.",
+}>
+
+// -----------------------------------------------------------------------------
+// Contract graph
+// -----------------------------------------------------------------------------
+
+runtimeDataContractGraph := @seed(graph) {
+  node: [
+    runtimeDataContractRoot,
+
+    pythonRuntimeSource,
+    tatSemanticReceiver,
+    reactRenderSource,
+    runtimeInjectionBoundary,
+
+    characterDataContract,
+    statValuesContract,
+    unlockedSkillsContract,
+    runtimeActionContract,
+    runtimeProjectionRequestContract,
+
+    characterIdField,
+    characterNameField,
+    characterLevelField,
+    characterXpField,
+
+    strengthValueField,
+    defenseValueField,
+    intelligenceValueField,
+    resistanceValueField,
+    speedValueField,
+    dexterityValueField,
+
+    unlockedSkillIdsField,
+    unlockedSkillIdField,
+
+    runtimeActionTypeField,
+    runtimeActionTargetField,
+    runtimeActionAmountField,
+
+    trainStatAction,
+    unlockSkillAction,
+    resetCharacterAction,
+
+    projectionRequestViewField,
+    projectionRequestDebugField,
+  ],
+
+  edge: [
+    runtimeContractIncludesCharacterData,
+    runtimeContractIncludesStatValues,
+    runtimeContractIncludesUnlockedSkills,
+    runtimeContractIncludesRuntimeActions,
+    runtimeContractIncludesProjectionRequests,
+
+    pythonSourceFeedsInjectionBoundary,
+    runtimeInjectionBoundaryFeedsTatReceiver,
+    tatReceiverInterpretsRuntimeContract,
+
+    characterDataRequiresId,
+    characterDataRequiresName,
+    characterDataRequiresLevel,
+    characterDataRequiresXp,
+
+    statValuesRequiresStrength,
+    statValuesRequiresDefense,
+    statValuesRequiresIntelligence,
+    statValuesRequiresResistance,
+    statValuesRequiresSpeed,
+    statValuesRequiresDexterity,
+
+    unlockedSkillsRequiresSkillIds,
+    unlockedSkillIdsContainsSkillId,
+
+    runtimeActionRequiresType,
+    runtimeActionRequiresTarget,
+    runtimeActionCanIncludeAmount,
+
+    runtimeActionAllowsTrainStat,
+    runtimeActionAllowsUnlockSkill,
+    runtimeActionAllowsResetCharacter,
+
+    trainStatActionTargetsStat,
+    unlockSkillActionTargetsUnlockedSkills,
+    resetCharacterActionTargetsRuntimeData,
+
+    projectionRequestRequiresView,
+    projectionRequestCanIncludeDebug,
+
+    characterDataOwnedByPython,
+    statValuesOwnedByPython,
+    unlockedSkillsOwnedByPython,
+    runtimeActionsAppliedByPython,
+    projectionRequestsOriginateFromReact,
+  ],
+
+  meta: {
+    purpose: "Define the runtime data contract between Python, TAT, and React.",
+    owner: tat,
+    sourceOwner: python,
+    dataBoundary: "Python owns values. TAT owns semantic interpretation. React owns rendering requests and display.",
+    status: "pass_9_runtime_data_contract_ready",
+  },
+
+  root: runtimeDataContractRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  runtimeDataContractRoot,
+  runtimeDataContractGraph,
+
+  pythonRuntimeSource,
+  tatSemanticReceiver,
+  reactRenderSource,
+  runtimeInjectionBoundary,
+
+  characterDataContract,
+  statValuesContract,
+  unlockedSkillsContract,
+  runtimeActionContract,
+  runtimeProjectionRequestContract,
+
+  characterIdField,
+  characterNameField,
+  characterLevelField,
+  characterXpField,
+
+  strengthValueField,
+  defenseValueField,
+  intelligenceValueField,
+  resistanceValueField,
+  speedValueField,
+  dexterityValueField,
+
+  unlockedSkillIdsField,
+  unlockedSkillIdField,
+
+  runtimeActionTypeField,
+  runtimeActionTargetField,
+  runtimeActionAmountField,
+
+  trainStatAction,
+  unlockSkillAction,
+  resetCharacterAction,
+
+  projectionRequestViewField,
+  projectionRequestDebugField,
+}

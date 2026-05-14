@@ -1,0 +1,263 @@
+// -----------------------------------------------------------------------------
+// stats.graph.tat
+// Character + Skill Builder
+//
+// Pass 1 goal:
+// Define the six canonical character stats and their semantic combat meanings.
+//
+// Python will later inject raw stat values.
+// This file only defines what each stat means.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Stat nodes
+// -----------------------------------------------------------------------------
+
+strength := <node {
+  id: strength,
+  label: "Strength",
+  kind: stat,
+  category: physical,
+  role: offense,
+  description: "Determines base physical damage dealt.",
+}>
+
+defense := <node {
+  id: defense,
+  label: "Defense",
+  kind: stat,
+  category: physical,
+  role: mitigation,
+  description: "Determines base physical damage avoided.",
+}>
+
+intelligence := <node {
+  id: intelligence,
+  label: "Intelligence",
+  kind: stat,
+  category: magical,
+  role: offense,
+  description: "Determines base magical damage dealt.",
+}>
+
+resistance := <node {
+  id: resistance,
+  label: "Resistance",
+  kind: stat,
+  category: magical,
+  role: mitigation,
+  description: "Determines base magical damage avoided.",
+}>
+
+speed := <node {
+  id: speed,
+  label: "Speed",
+  kind: stat,
+  category: universal,
+  role: tempo,
+  description: "Determines turn order and physical/magical attack avoidance.",
+}>
+
+dexterity := <node {
+  id: dexterity,
+  label: "Dexterity",
+  kind: stat,
+  category: universal,
+  role: precision,
+  description: "Determines weapon wieldability and physical/magical attack accuracy.",
+}>
+
+// -----------------------------------------------------------------------------
+// Stat meaning nodes
+// These are semantic outputs, not calculated values.
+// -----------------------------------------------------------------------------
+
+physicalDamageDealt := <node {
+  id: physicalDamageDealt,
+  label: "Physical Damage Dealt",
+  kind: statMeaning,
+  category: physical,
+  role: offense,
+  description: "Base physical damage output.",
+}>
+
+physicalDamageAvoided := <node {
+  id: physicalDamageAvoided,
+  label: "Physical Damage Avoided",
+  kind: statMeaning,
+  category: physical,
+  role: mitigation,
+  description: "Base physical damage reduction or avoidance.",
+}>
+
+magicalDamageDealt := <node {
+  id: magicalDamageDealt,
+  label: "Magical Damage Dealt",
+  kind: statMeaning,
+  category: magical,
+  role: offense,
+  description: "Base magical damage output.",
+}>
+
+magicalDamageAvoided := <node {
+  id: magicalDamageAvoided,
+  label: "Magical Damage Avoided",
+  kind: statMeaning,
+  category: magical,
+  role: mitigation,
+  description: "Base magical damage reduction or avoidance.",
+}>
+
+turnOrder := <node {
+  id: turnOrder,
+  label: "Turn Order",
+  kind: statMeaning,
+  category: tempo,
+  role: initiative,
+  description: "Determines how early a character acts in combat.",
+}>
+
+attackAvoidance := <node {
+  id: attackAvoidance,
+  label: "Attack Avoidance",
+  kind: statMeaning,
+  category: evasion,
+  role: defense,
+  description: "Determines chance to avoid physical and magical attacks.",
+}>
+
+weaponWieldability := <node {
+  id: weaponWieldability,
+  label: "Weapon Wieldability",
+  kind: statMeaning,
+  category: equipment,
+  role: access,
+  description: "Determines whether a character can wield certain weapons.",
+}>
+
+attackAccuracy := <node {
+  id: attackAccuracy,
+  label: "Attack Accuracy",
+  kind: statMeaning,
+  category: precision,
+  role: accuracy,
+  description: "Determines physical and magical attack accuracy.",
+}>
+
+// -----------------------------------------------------------------------------
+// Stat grouping node
+// -----------------------------------------------------------------------------
+
+statsRoot := <node {
+  id: statsRoot,
+  label: "Character Stats",
+  kind: statGroup,
+  description: "Root node for the character stat system.",
+}>
+
+// -----------------------------------------------------------------------------
+// Stat inclusion edges
+// -----------------------------------------------------------------------------
+
+statsIncludesStrength := { statsRoot : includes : strength }
+statsIncludesDefense := { statsRoot : includes : defense }
+statsIncludesIntelligence := { statsRoot : includes : intelligence }
+statsIncludesResistance := { statsRoot : includes : resistance }
+statsIncludesSpeed := { statsRoot : includes : speed }
+statsIncludesDexterity := { statsRoot : includes : dexterity }
+
+// -----------------------------------------------------------------------------
+// Stat meaning edges
+// -----------------------------------------------------------------------------
+
+strengthDeterminesPhysicalDamageDealt := { strength : determines : physicalDamageDealt }
+
+defenseDeterminesPhysicalDamageAvoided := { defense : determines : physicalDamageAvoided }
+
+intelligenceDeterminesMagicalDamageDealt := { intelligence : determines : magicalDamageDealt }
+
+resistanceDeterminesMagicalDamageAvoided := { resistance : determines : magicalDamageAvoided }
+
+speedDeterminesTurnOrder := { speed : determines : turnOrder }
+speedDeterminesAttackAvoidance := { speed : determines : attackAvoidance }
+
+dexterityDeterminesWeaponWieldability := { dexterity : determines : weaponWieldability }
+dexterityDeterminesAttackAccuracy := { dexterity : determines : attackAccuracy }
+
+// -----------------------------------------------------------------------------
+// Stats graph
+// -----------------------------------------------------------------------------
+
+statsGraph := @seed(graph) {
+  node: [
+    statsRoot,
+
+    strength,
+    defense,
+    intelligence,
+    resistance,
+    speed,
+    dexterity,
+
+    physicalDamageDealt,
+    physicalDamageAvoided,
+    magicalDamageDealt,
+    magicalDamageAvoided,
+    turnOrder,
+    attackAvoidance,
+    weaponWieldability,
+    attackAccuracy,
+  ],
+
+  edge: [
+    statsIncludesStrength,
+    statsIncludesDefense,
+    statsIncludesIntelligence,
+    statsIncludesResistance,
+    statsIncludesSpeed,
+    statsIncludesDexterity,
+
+    strengthDeterminesPhysicalDamageDealt,
+    defenseDeterminesPhysicalDamageAvoided,
+    intelligenceDeterminesMagicalDamageDealt,
+    resistanceDeterminesMagicalDamageAvoided,
+    speedDeterminesTurnOrder,
+    speedDeterminesAttackAvoidance,
+    dexterityDeterminesWeaponWieldability,
+    dexterityDeterminesAttackAccuracy,
+  ],
+
+  meta: {
+    purpose: "Define the canonical stat system and the semantic meaning of each stat.",
+    owner: tat,
+    dataBoundary: "No raw stat values are stored here. Python injects values later.",
+  },
+
+  root: statsRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  statsRoot,
+
+  strength,
+  defense,
+  intelligence,
+  resistance,
+  speed,
+  dexterity,
+
+  physicalDamageDealt,
+  physicalDamageAvoided,
+  magicalDamageDealt,
+  magicalDamageAvoided,
+  turnOrder,
+  attackAvoidance,
+  weaponWieldability,
+  attackAccuracy,
+
+  statsGraph,
+}

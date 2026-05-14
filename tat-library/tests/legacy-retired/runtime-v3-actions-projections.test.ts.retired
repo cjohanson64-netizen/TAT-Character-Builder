@@ -1,0 +1,279 @@
+import { describe, expect, it } from "vitest";
+
+import { runV3Source } from "../src/runtime/index";
+
+const fixture = `
+  node1 := <node {
+    id: node1,
+    label: "Node 1"
+  }>
+
+  node2 := <node {
+    id: node2,
+    label: "Node 2"
+  }>
+
+  edge1 := { node1 : connectedTo : node2 }
+
+  heal := @action(graph) {
+    ?> @query(state) {
+      node: target,
+      key: hp
+    }
+
+    -> @update(state) {
+      target.hp = @derive(value) { target: value, formula: target.hp + amount }
+    }
+  }
+
+  battleCard := @project(node) {
+    format: custom,
+    include: [node.hp, node.label]
+  }
+
+  graph1 := @seed(graph) {
+    node: [node1, node2],
+    edge: [edge1],
+    state: {
+      node1.hp: 40
+    },
+    meta: {
+      node1.role: actor
+    },
+    root: node1
+  }
+`;
+
+function flowValue(result: ReturnType<typeof runV3Source>, name = "view"): any {
+  return result.bindings[name]?.type === "flowResult" ? result.bindings[name].value : undefined;
+}
+
+describe("TAT v3 runtime actions and projections", () => {
+  it("top-level action binding stores action constructor value", () => {
+    const result = runV3Source(fixture);
+
+    expect(result.bindings.heal).toMatchObject({
+      type: "constructor",
+      constructorKind: "action",
+      name: "heal",
+      params: ["actor", "target", "amount"],
+    });
+  });
+
+  it("action invocation in mutation flow executes action body", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+    `);
+
+    expect(result.status).toBe("success");
+    expect(result.graphs.graph1.state.node1.hp).toBe(50);
+  });
+
+  it("action params resolve in update paths", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 5)
+    `);
+
+    expect(result.graphs.graph1.state.node1.hp).toBe(45);
+  });
+
+  it("action event is recorded", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+    `);
+
+    expect(result.events).toContainEqual(
+      expect.objectContaining({
+        type: "action",
+        name: "heal",
+        args: ["node2", "node1", 10],
+      }),
+    );
+  });
+
+  it("top-level project binding stores projection constructor value", () => {
+    const result = runV3Source(fixture);
+
+    expect(result.bindings.battleCard).toMatchObject({
+      type: "constructor",
+      constructorKind: "projection",
+      name: "battleCard",
+      params: ["node"],
+    });
+  });
+
+  it("projection invocation in projection flow returns structured output", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        <> battleCard(node1)
+    `);
+
+    expect(flowValue(result).projections.project).toMatchObject({
+      kind: "project",
+      format: "custom",
+      target: "node1",
+      data: {
+        "node.hp": 40,
+        "node.label": "Node 1",
+      },
+    });
+  });
+
+  it("inline project projection returns structured output", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        <> @project(node1) {
+          format: custom,
+          include: [node1.hp, node1.label]
+        }
+    `);
+
+    expect(flowValue(result).projections.project).toMatchObject({
+      kind: "project",
+      target: "node1",
+      data: {
+        "node1.hp": 40,
+        "node1.label": "Node 1",
+      },
+    });
+  });
+
+  it("projection output is stored in flow result binding", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        <> battleCard(node1)
+    `);
+
+    expect(flowValue(result).projections).toHaveProperty("project");
+    expect(result.projections).toHaveProperty("project");
+  });
+
+  it("who output returns participant nodes", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+        <> @who()
+    `);
+
+    expect(flowValue(result).projections.who).toMatchObject({
+      kind: "who",
+      nodes: expect.arrayContaining([
+        { role: "actor", id: "node2" },
+        { role: "target", id: "node1" },
+        { role: "affected", id: "node1" },
+      ]),
+    });
+  });
+
+  it("what output returns actions and changes", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+        <> @what()
+    `);
+
+    expect(flowValue(result).projections.what).toMatchObject({
+      kind: "what",
+      actions: [{ name: "heal", args: ["node2", "node1", 10] }],
+      changes: [expect.objectContaining({ domain: "state", path: "node1.hp", from: 40, to: 50 })],
+    });
+  });
+
+  it("why output returns query and gate cause data", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+        <> @why()
+    `);
+
+    expect(flowValue(result).projections.why).toMatchObject({
+      kind: "why",
+      causes: [expect.objectContaining({ type: "query", domain: "state", result: true })],
+      gates: [expect.objectContaining({ operator: "?>", passed: true })],
+      triggers: [],
+    });
+  });
+
+  it("how output returns ordered execution steps", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+        <> @how()
+    `);
+
+    expect(flowValue(result).projections.how.steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "action", name: "heal" }),
+        expect.objectContaining({ type: "gate", operator: "?>" }),
+        expect.objectContaining({ type: "mutation", directive: "update", paths: ["node1.hp"] }),
+      ]),
+    );
+  });
+
+  it("how output includes its own projection step", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        <> @how()
+    `);
+
+    expect(flowValue(result).projections.how.steps).toContainEqual({
+      type: "projection",
+      directive: "@how",
+    });
+  });
+
+  it("combined flow with action, main projection, and explanations works", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        -> heal(node2, node1, 10)
+        <> battleCard(node1)
+        <> @who()
+        <> @what()
+        <> @why()
+        <> @how()
+    `);
+
+    const projections = flowValue(result).projections;
+    expect(result.graphs.graph1.state.node1.hp).toBe(50);
+    expect(projections).toEqual(
+      expect.objectContaining({
+        project: expect.objectContaining({ kind: "project" }),
+        who: expect.objectContaining({ kind: "who" }),
+        what: expect.objectContaining({ kind: "what" }),
+        why: expect.objectContaining({ kind: "why" }),
+        how: expect.objectContaining({ kind: "how" }),
+      }),
+    );
+  });
+
+  it("projection events are recorded", () => {
+    const result = runV3Source(`
+      ${fixture}
+      view := graph1
+        <> battleCard(node1)
+        <> @what()
+    `);
+
+    expect(result.events).toContainEqual(
+      expect.objectContaining({ type: "projection", projection: "battleCard" }),
+    );
+    expect(result.events).toContainEqual(
+      expect.objectContaining({ type: "projection", projection: "@what" }),
+    );
+  });
+});

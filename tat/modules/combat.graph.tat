@@ -1,0 +1,205 @@
+// -----------------------------------------------------------------------------
+// combat.graph.tat
+// Character + Skill Builder
+//
+// Pass 2 goal:
+// Define the combat concept graph as its own semantic domain.
+//
+// This file does not calculate damage.
+// This file does not connect stats to combat yet.
+// It only defines the combat concepts that stats, skills, and equipment can
+// later contribute to.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Combat root
+// -----------------------------------------------------------------------------
+
+combatRoot := <node {
+  id: combatRoot,
+  label: "Combat",
+  kind: combatDomain,
+  description: "Root node for combat-related semantic concepts.",
+}>
+
+// -----------------------------------------------------------------------------
+// Combat concept nodes
+// -----------------------------------------------------------------------------
+
+physicalDamageDealt := <node {
+  id: physicalDamageDealt,
+  label: "Physical Damage Dealt",
+  kind: combatConcept,
+  category: physical,
+  role: offense,
+  description: "Represents outgoing physical damage.",
+}>
+
+physicalDamageAvoided := <node {
+  id: physicalDamageAvoided,
+  label: "Physical Damage Avoided",
+  kind: combatConcept,
+  category: physical,
+  role: mitigation,
+  description: "Represents reduced, blocked, dodged, or avoided physical damage.",
+}>
+
+magicalDamageDealt := <node {
+  id: magicalDamageDealt,
+  label: "Magical Damage Dealt",
+  kind: combatConcept,
+  category: magical,
+  role: offense,
+  description: "Represents outgoing magical damage.",
+}>
+
+magicalDamageAvoided := <node {
+  id: magicalDamageAvoided,
+  label: "Magical Damage Avoided",
+  kind: combatConcept,
+  category: magical,
+  role: mitigation,
+  description: "Represents reduced, resisted, dodged, or avoided magical damage.",
+}>
+
+turnOrder := <node {
+  id: turnOrder,
+  label: "Turn Order",
+  kind: combatConcept,
+  category: tempo,
+  role: initiative,
+  description: "Represents when a character acts during combat.",
+}>
+
+attackAvoidance := <node {
+  id: attackAvoidance,
+  label: "Attack Avoidance",
+  kind: combatConcept,
+  category: evasion,
+  role: defense,
+  description: "Represents avoiding incoming physical or magical attacks.",
+}>
+
+weaponWieldability := <node {
+  id: weaponWieldability,
+  label: "Weapon Wieldability",
+  kind: combatConcept,
+  category: equipment,
+  role: access,
+  description: "Represents whether a character can wield specific weapon types.",
+}>
+
+attackAccuracy := <node {
+  id: attackAccuracy,
+  label: "Attack Accuracy",
+  kind: combatConcept,
+  category: precision,
+  role: accuracy,
+  description: "Represents the chance to successfully hit with physical or magical attacks.",
+}>
+
+// -----------------------------------------------------------------------------
+// Combat inclusion edges
+// -----------------------------------------------------------------------------
+
+combatIncludesPhysicalDamageDealt := { combatRoot : includes : physicalDamageDealt }
+
+combatIncludesPhysicalDamageAvoided := { combatRoot : includes : physicalDamageAvoided }
+
+combatIncludesMagicalDamageDealt := { combatRoot : includes : magicalDamageDealt }
+
+combatIncludesMagicalDamageAvoided := { combatRoot : includes : magicalDamageAvoided }
+
+combatIncludesTurnOrder := { combatRoot : includes : turnOrder }
+
+combatIncludesAttackAvoidance := { combatRoot : includes : attackAvoidance }
+
+combatIncludesWeaponWieldability := { combatRoot : includes : weaponWieldability }
+
+combatIncludesAttackAccuracy := { combatRoot : includes : attackAccuracy }
+
+// -----------------------------------------------------------------------------
+// Combat concept grouping edges
+// -----------------------------------------------------------------------------
+
+physicalDamageDealtIsOffense := { physicalDamageDealt : belongsToRole : offense }
+
+magicalDamageDealtIsOffense := { magicalDamageDealt : belongsToRole : offense }
+
+physicalDamageAvoidedIsDefense := { physicalDamageAvoided : belongsToRole : defense }
+
+magicalDamageAvoidedIsDefense := { magicalDamageAvoided : belongsToRole : defense }
+
+attackAvoidanceIsDefense := { attackAvoidance : belongsToRole : defense }
+
+turnOrderIsTempo := { turnOrder : belongsToRole : tempo }
+
+weaponWieldabilityIsEquipmentAccess := { weaponWieldability : belongsToRole : equipmentAccess }
+
+attackAccuracyIsPrecision := { attackAccuracy : belongsToRole : precision }
+
+// -----------------------------------------------------------------------------
+// Combat graph
+// -----------------------------------------------------------------------------
+
+combatGraph := @seed(graph) {
+  node: [
+    combatRoot,
+
+    physicalDamageDealt,
+    physicalDamageAvoided,
+    magicalDamageDealt,
+    magicalDamageAvoided,
+    turnOrder,
+    attackAvoidance,
+    weaponWieldability,
+    attackAccuracy,
+  ],
+
+  edge: [
+    combatIncludesPhysicalDamageDealt,
+    combatIncludesPhysicalDamageAvoided,
+    combatIncludesMagicalDamageDealt,
+    combatIncludesMagicalDamageAvoided,
+    combatIncludesTurnOrder,
+    combatIncludesAttackAvoidance,
+    combatIncludesWeaponWieldability,
+    combatIncludesAttackAccuracy,
+
+    physicalDamageDealtIsOffense,
+    magicalDamageDealtIsOffense,
+    physicalDamageAvoidedIsDefense,
+    magicalDamageAvoidedIsDefense,
+    attackAvoidanceIsDefense,
+    turnOrderIsTempo,
+    weaponWieldabilityIsEquipmentAccess,
+    attackAccuracyIsPrecision,
+  ],
+
+  meta: {
+    purpose: "Define the canonical combat concept domain.",
+    owner: tat,
+    dataBoundary: "No combat calculations are stored here. Python may calculate values later; TAT defines semantic meaning.",
+  },
+
+  root: combatRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  combatRoot,
+
+  physicalDamageDealt,
+  physicalDamageAvoided,
+  magicalDamageDealt,
+  magicalDamageAvoided,
+  turnOrder,
+  attackAvoidance,
+  weaponWieldability,
+  attackAccuracy,
+
+  combatGraph,
+}

@@ -1,0 +1,256 @@
+import { describe, expect, it } from "vitest";
+
+import { parseV3Program } from "../src/parser/index";
+
+describe("TAT v3 parser foundation", () => {
+  it("parses node semantic binding and node body entries", () => {
+    const program = parseV3Program(`
+      node1 := <node {
+        id: node1,
+        label: "Node 1",
+        kind: generic,
+      }>
+    `);
+
+    const binding = program.body[0];
+    expect(binding).toMatchObject({
+      kind: "Binding",
+      name: { kind: "Identifier", name: "node1" },
+      value: {
+        kind: "NodeDefinition",
+        body: {
+          kind: "Object",
+          entries: [
+            { kind: "ObjectEntry", key: { name: "id" }, value: { name: "node1" } },
+            {
+              kind: "ObjectEntry",
+              key: { name: "label" },
+              value: { kind: "Literal", literalKind: "string", value: "Node 1" },
+            },
+            { kind: "ObjectEntry", key: { name: "kind" }, value: { name: "generic" } },
+          ],
+        },
+      },
+    });
+  });
+
+  it("parses directive bindings with args, object entries, arrays, and paths", () => {
+    const program = parseV3Program(`
+      projection1 := @project(node) {
+        format: custom,
+        include: [node.hp, node.class, node.actions],
+      }
+    `);
+
+    const binding = program.body[0] as any;
+    expect(binding.value).toMatchObject({
+      kind: "Directive",
+      name: "project",
+      args: [{ kind: "Identifier", name: "node" }],
+      body: {
+        kind: "Object",
+        entries: [
+          { kind: "ObjectEntry", key: { name: "format" }, value: { name: "custom" } },
+          {
+            kind: "ObjectEntry",
+            key: { name: "include" },
+            value: {
+              kind: "Array",
+              items: [
+                { kind: "Path", parts: [{ name: "node" }, { name: "hp" }] },
+                { kind: "Path", parts: [{ name: "node" }, { name: "class" }] },
+                { kind: "Path", parts: [{ name: "node" }, { name: "actions" }] },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it("parses assignments in directive bodies", () => {
+    const program = parseV3Program(`
+      action1 := @action(graph) {
+        target.hp = @derive(value) { target: value, formula: target.hp + amount },
+        target.status = wounded,
+      }
+    `);
+
+    const body = (program.body[0] as any).value.body;
+    expect(body.entries).toMatchObject([
+      {
+        kind: "Assignment",
+        target: { kind: "Path", parts: [{ name: "target" }, { name: "hp" }] },
+        value: {
+          kind: "Directive",
+          name: "derive",
+          args: [
+            {
+              kind: "Expression",
+              expressionKind: "binary",
+              operator: "+",
+              left: { kind: "Path", parts: [{ name: "target" }, { name: "hp" }] },
+              right: { kind: "Identifier", name: "amount" },
+            },
+          ],
+        },
+      },
+      {
+        kind: "Assignment",
+        target: { kind: "Path", parts: [{ name: "target" }, { name: "status" }] },
+        value: { kind: "Identifier", name: "wounded" },
+      },
+    ]);
+  });
+
+  it("parses invocations", () => {
+    const program = parseV3Program("result := heal(actor, target, 10)");
+
+    expect((program.body[0] as any).value).toMatchObject({
+      kind: "Invocation",
+      callee: { kind: "Identifier", name: "heal" },
+      args: [
+        { kind: "Identifier", name: "actor" },
+        { kind: "Identifier", name: "target" },
+        { kind: "Literal", literalKind: "number", value: 10 },
+      ],
+    });
+  });
+
+  it("parses arithmetic expressions with precedence", () => {
+    const program = parseV3Program("value1 := node1.hp + 10 / damage");
+
+    expect((program.body[0] as any).value).toMatchObject({
+      kind: "Expression",
+      expressionKind: "binary",
+      operator: "+",
+      left: { kind: "Path", parts: [{ name: "node1" }, { name: "hp" }] },
+      right: {
+        kind: "Expression",
+        expressionKind: "binary",
+        operator: "/",
+        left: { kind: "Literal", literalKind: "number", value: 10 },
+        right: { kind: "Identifier", name: "damage" },
+      },
+    });
+
+    const concat = parseV3Program('name := node1.firstName + " " + node1.lastName');
+    expect((concat.body[0] as any).value).toMatchObject({
+      kind: "Expression",
+      expressionKind: "binary",
+      operator: "+",
+      left: {
+        kind: "Expression",
+        expressionKind: "binary",
+        operator: "+",
+        left: { kind: "Path", parts: [{ name: "node1" }, { name: "firstName" }] },
+        right: { kind: "Literal", literalKind: "string", value: " " },
+      },
+      right: { kind: "Path", parts: [{ name: "node1" }, { name: "lastName" }] },
+    });
+
+    const subtract = parseV3Program("hp := node1.hp - damage");
+    expect((subtract.body[0] as any).value).toMatchObject({
+      kind: "Expression",
+      expressionKind: "binary",
+      operator: "-",
+      left: { kind: "Path", parts: [{ name: "node1" }, { name: "hp" }] },
+      right: { kind: "Identifier", name: "damage" },
+    });
+  });
+
+  it("parses prefix and binary comparison expressions", () => {
+    const query = parseV3Program(`
+      @query(state) {
+        node: node1,
+        key: hp,
+        value: < 20,
+      }
+    `);
+    const compareValue = ((query.body[0] as any).body.entries[2] as any).value;
+
+    expect(compareValue).toMatchObject({
+      kind: "Expression",
+      expressionKind: "comparison",
+      operator: "<",
+      right: { kind: "Literal", literalKind: "number", value: 20 },
+    });
+
+    const binary = parseV3Program("lowHp := node1.hp <= 20");
+    expect((binary.body[0] as any).value).toMatchObject({
+      kind: "Expression",
+      expressionKind: "comparison",
+      operator: "<=",
+      left: { kind: "Path", parts: [{ name: "node1" }, { name: "hp" }] },
+      right: { kind: "Literal", literalKind: "number", value: 20 },
+    });
+  });
+
+  it("parses comparison values containing directives and function-call expressions", () => {
+    const program = parseV3Program(`
+      @query(state) {
+        value: >= @derive(value) { target: value, formula: node1.maxHp / 2 },
+        computed: @derive(value) { target: value, formula: clamp(node1.hp, 0, node1.maxHp) },
+      }
+    `);
+
+    const entries = (program.body[0] as any).body.entries;
+    expect(entries[0].value).toMatchObject({
+      kind: "Expression",
+      expressionKind: "comparison",
+      operator: ">=",
+      right: {
+        kind: "Directive",
+        name: "derive",
+        args: [
+          {
+            kind: "Expression",
+            expressionKind: "binary",
+            operator: "/",
+          },
+        ],
+      },
+    });
+    expect(entries[1].value.args[0]).toMatchObject({
+      kind: "Expression",
+      expressionKind: "functionCall",
+      name: { name: "clamp" },
+      args: [
+        { kind: "Path", parts: [{ name: "node1" }, { name: "hp" }] },
+        { kind: "Literal", literalKind: "number", value: 0 },
+        { kind: "Path", parts: [{ name: "node1" }, { name: "maxHp" }] },
+      ],
+    });
+  });
+
+  it("parses nested objects and trailing commas", () => {
+    const program = parseV3Program(`
+      graph1 := @seed(graph) {
+        node: [node1, node2],
+        state: {
+          node1.hp: 100,
+        },
+        root: node1,
+      }
+    `);
+
+    expect((program.body[0] as any).value.body.entries).toMatchObject([
+      { kind: "ObjectEntry", key: { name: "node" }, value: { kind: "Array" } },
+      {
+        kind: "ObjectEntry",
+        key: { name: "state" },
+        value: {
+          kind: "Object",
+          entries: [
+            {
+              kind: "ObjectEntry",
+              key: { kind: "Path", parts: [{ name: "node1" }, { name: "hp" }] },
+              value: { kind: "Literal", literalKind: "number", value: 100 },
+            },
+          ],
+        },
+      },
+      { kind: "ObjectEntry", key: { name: "root" }, value: { name: "node1" } },
+    ]);
+  });
+});

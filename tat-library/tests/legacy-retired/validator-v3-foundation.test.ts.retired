@@ -1,0 +1,143 @@
+import { describe, expect, it } from "vitest";
+
+import { parseV3Program } from "../src/parser/index";
+import { validateV3Program, validateV3Source } from "../src/validator/index";
+
+function messages(source: string): string[] {
+  return validateV3Source(source).diagnostics.map((diagnostic) => diagnostic.message);
+}
+
+describe("TAT v3 validator foundation", () => {
+  it("returns valid true for a basic valid program", () => {
+    const result = validateV3Source(`
+      node1 := <node { id: node1 }>
+      node2 := <node { id: node2 }>
+      edge1 := { node1 : connectedTo : node2 }
+      graph1 := @seed(graph) {
+        node: [node1, node2],
+        edge: [edge1],
+        root: node1
+      }
+      @query(state) { node: node1 }
+    `);
+
+    expect(result.valid).toBe(true);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it("adds node bindings to the symbol table", () => {
+    const result = validateV3Source("node1 := <node { id: node1 }>");
+
+    expect(result.symbols.get("node1")).toMatchObject({
+      name: "node1",
+      symbolKind: "node",
+      scope: "module",
+    });
+  });
+
+  it("adds edge bindings to the symbol table", () => {
+    const result = validateV3Source("edge1 := { node1 : connectedTo : node2 }");
+
+    expect(result.symbols.get("edge1")).toMatchObject({
+      name: "edge1",
+      symbolKind: "edge",
+      scope: "module",
+    });
+  });
+
+  it("adds action bindings to the symbol table", () => {
+    const result = validateV3Source(`
+      action1 := @action(graph) {
+        target.hp = @derive(value) { target: value, formula: target.hp + 1 }
+      }
+    `);
+
+    expect(result.symbols.get("action1")?.symbolKind).toBe("action");
+  });
+
+  it("adds projection bindings to the symbol table", () => {
+    const result = validateV3Source(`
+      projection1 := @project(node) {
+        format: custom
+      }
+    `);
+
+    expect(result.symbols.get("projection1")?.symbolKind).toBe("projection");
+  });
+
+  it("adds seed bindings to the symbol table as graphs", () => {
+    const result = validateV3Source(`
+      graph1 := @seed(graph) {
+        root: node1
+      }
+    `);
+
+    expect(result.symbols.get("graph1")?.symbolKind).toBe("graph");
+  });
+
+  it("adds traversal and match bindings to the symbol table", () => {
+    const result = validateV3Source(`
+      route1 := @traverse(graph) {
+        target: graph1, from: node1, to: node2 }
+      matches1 := @match(node) { where: { state.hp: < 20 } }
+    `);
+
+    expect(result.symbols.get("route1")?.symbolKind).toBe("traversal");
+    expect(result.symbols.get("matches1")?.symbolKind).toBe("match");
+  });
+
+  it("reports duplicate semantic bindings", () => {
+    expect(messages(`
+      node1 := <node { id: node1 }>
+      node1 := <node { id: node1b }>
+    `)).toContain('Duplicate semantic binding "node1".');
+  });
+
+  it("accepts valid singular domains for domain directives", () => {
+    const result = validateV3Source(`
+      @query(state) { node: node1 }
+      @graft(edge) { edge1: { node1 : connectedTo : node2 } }
+      @prune(meta) { node: node1 }
+      @update(state) { node1.hp = 10 }
+      @match(node) { where: { state.hp: < 20 } }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("reports plural domains with singular suggestions", () => {
+    const resultMessages = messages(`
+      @query(states) { node: node1 }
+      @graft(nodes) { node3: <node { id: node3 }> }
+      @update(metas) { node1.role = actor }
+    `);
+
+    expect(resultMessages).toContain('Use singular domain "state" instead of "states".');
+    expect(resultMessages).toContain('Use singular domain "node" instead of "nodes".');
+    expect(resultMessages).toContain('Use singular domain "meta" instead of "metas".');
+  });
+
+  it("reports unknown directives", () => {
+    expect(messages("@foo()")).toContain('Unknown TAT directive "@foo".');
+  });
+
+  it("reports top-level assignment instead of semantic binding", () => {
+    const program = parseV3Program("node1 = <node { id: node1 }>");
+    const result = validateV3Program(program);
+
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toContain(
+      'Top-level semantic bindings must use ":=".',
+    );
+  });
+
+  it("allows assignments inside update bodies", () => {
+    const result = validateV3Source(`
+      @update(state) {
+        node1.hp = 10
+      }
+    `);
+
+    expect(result.valid).toBe(true);
+  });
+});

@@ -1,0 +1,437 @@
+// -----------------------------------------------------------------------------
+// projections.tat
+// Character + Skill Builder
+//
+// Purpose:
+// Define React-facing semantic projection views and apply them to imported
+// graph/network bindings.
+//
+// React should render these projections.
+// React should not decide what the semantic views mean.
+// -----------------------------------------------------------------------------
+
+import {
+  characterGraph,
+} from "./character.graph.tat"
+
+import {
+  statsGraph,
+} from "./stats.graph.tat"
+
+import {
+  combatGraph,
+} from "./combat.graph.tat"
+
+import {
+  skillsGraph,
+} from "./skills.graph.tat"
+
+import {
+  unlockRulesGraph,
+} from "./unlock.rules.tat"
+
+import {
+  progressionNetwork,
+} from "./progression.network.tat"
+
+// -----------------------------------------------------------------------------
+// Projection domain root
+// -----------------------------------------------------------------------------
+
+projectionRoot := <node {
+  id: projectionRoot,
+  label: "Projection Views",
+  kind: projectionDomain,
+  description: "Root node for React-facing semantic projections.",
+}>
+
+// -----------------------------------------------------------------------------
+// Projection target nodes
+// -----------------------------------------------------------------------------
+
+characterSheetView := <node {
+  id: characterSheetView,
+  label: "Character Sheet View",
+  kind: projectionView,
+  target: characterGraph,
+  description: "React-facing projection for character identity, facets, and stat-facing summary.",
+}>
+
+statsView := <node {
+  id: statsView,
+  label: "Stats View",
+  kind: projectionView,
+  target: statsGraph,
+  description: "React-facing projection for canonical stats and their meanings.",
+}>
+
+combatView := <node {
+  id: combatView,
+  label: "Combat View",
+  kind: projectionView,
+  target: combatGraph,
+  description: "React-facing projection for combat concepts.",
+}>
+
+skillTreeView := <node {
+  id: skillTreeView,
+  label: "Skill Tree View",
+  kind: projectionView,
+  target: skillsGraph,
+  description: "React-facing projection for skill categories, tiers, and prerequisite paths.",
+}>
+
+unlockRulesView := <node {
+  id: unlockRulesView,
+  label: "Unlock Rules View",
+  kind: projectionView,
+  target: unlockRulesGraph,
+  description: "React-facing projection for authored unlock requirements and status vocabulary.",
+}>
+
+progressionTopologyViewNode := <node {
+  id: progressionTopologyViewNode,
+  label: "Progression Topology View",
+  kind: projectionView,
+  target: progressionNetwork,
+  description: "React-facing projection for cross-domain graph/network topology.",
+}>
+
+debugSemanticView := <node {
+  id: debugSemanticView,
+  label: "Debug Semantic View",
+  kind: projectionView,
+  target: progressionNetwork,
+  description: "React-facing debug projection for inspecting graphs, bridges, contexts, hooks, and semantic boundaries.",
+}>
+
+// -----------------------------------------------------------------------------
+// Panel target nodes
+// These are semantic UI targets, not React components.
+// React may map these names to actual components later.
+// -----------------------------------------------------------------------------
+
+characterSheetPanel := <node {
+  id: characterSheetPanel,
+  label: "Character Sheet Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering character identity and character-facing summary.",
+}>
+
+statsPanel := <node {
+  id: statsPanel,
+  label: "Stats Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering stat names, meanings, and later stat values.",
+}>
+
+combatPanel := <node {
+  id: combatPanel,
+  label: "Combat Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering combat concepts and their stat/skill relationships.",
+}>
+
+skillTreePanel := <node {
+  id: skillTreePanel,
+  label: "Skill Tree Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering skill categories, tiers, and paths.",
+}>
+
+unlockRulesPanel := <node {
+  id: unlockRulesPanel,
+  label: "Unlock Rules Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering skill requirements and lock/unlock vocabulary.",
+}>
+
+networkPanel := <node {
+  id: networkPanel,
+  label: "Network Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering cross-graph topology.",
+}>
+
+debugPanel := <node {
+  id: debugPanel,
+  label: "Debug Panel",
+  kind: uiTarget,
+  description: "A semantic target for rendering raw semantic debug information.",
+}>
+
+// -----------------------------------------------------------------------------
+// Projection inclusion edges
+// -----------------------------------------------------------------------------
+
+projectionIncludesCharacterSheetView := { projectionRoot : includes : characterSheetView }
+
+projectionIncludesStatsView := { projectionRoot : includes : statsView }
+
+projectionIncludesCombatView := { projectionRoot : includes : combatView }
+
+projectionIncludesSkillTreeView := { projectionRoot : includes : skillTreeView }
+
+projectionIncludesUnlockRulesView := { projectionRoot : includes : unlockRulesView }
+
+projectionIncludesProgressionTopologyView := { projectionRoot : includes : progressionTopologyViewNode }
+
+projectionIncludesDebugSemanticView := { projectionRoot : includes : debugSemanticView }
+
+// -----------------------------------------------------------------------------
+// Projection ownership / target edges
+// -----------------------------------------------------------------------------
+
+characterSheetViewProjectsCharacterGraph := { characterSheetView : projects : characterGraph }
+
+statsViewProjectsStatsGraph := { statsView : projects : statsGraph }
+
+combatViewProjectsCombatGraph := { combatView : projects : combatGraph }
+
+skillTreeViewProjectsSkillsGraph := { skillTreeView : projects : skillsGraph }
+
+unlockRulesViewProjectsUnlockRulesGraph := { unlockRulesView : projects : unlockRulesGraph }
+
+progressionTopologyViewProjectsProgressionNetwork := { progressionTopologyViewNode : projects : progressionNetwork }
+
+debugSemanticViewProjectsProgressionNetwork := { debugSemanticView : projects : progressionNetwork }
+
+// -----------------------------------------------------------------------------
+// Projection purpose edges
+// -----------------------------------------------------------------------------
+
+characterSheetViewSupportsCharacterPanel := { characterSheetView : supportsPanel : characterSheetPanel }
+
+statsViewSupportsStatsPanel := { statsView : supportsPanel : statsPanel }
+
+combatViewSupportsCombatPanel := { combatView : supportsPanel : combatPanel }
+
+skillTreeViewSupportsSkillTreePanel := { skillTreeView : supportsPanel : skillTreePanel }
+
+unlockRulesViewSupportsUnlockRulesPanel := { unlockRulesView : supportsPanel : unlockRulesPanel }
+
+progressionTopologyViewSupportsNetworkPanel := { progressionTopologyViewNode : supportsPanel : networkPanel }
+
+debugSemanticViewSupportsDebugPanel := { debugSemanticView : supportsPanel : debugPanel }
+
+// -----------------------------------------------------------------------------
+// Projection definitions
+// -----------------------------------------------------------------------------
+
+characterSheetProjection := @project(graph) {
+  source: characterGraph,
+  view: characterSheetView,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose character structure to React without requiring React to understand internal graph traversal.",
+}
+
+statsProjection := @project(graph) {
+  source: statsGraph,
+  view: statsView,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose stats and stat meanings to React.",
+}
+
+combatProjection := @project(graph) {
+  source: combatGraph,
+  view: combatView,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose combat concepts to React.",
+}
+
+skillTreeProjection := @project(graph) {
+  source: skillsGraph,
+  view: skillTreeView,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose skill categories, tiers, and prerequisite paths to React.",
+}
+
+unlockRulesProjection := @project(graph) {
+  source: unlockRulesGraph,
+  view: unlockRulesView,
+  format: tree,
+  include: [
+    nodes,
+    edges,
+    root,
+    meta,
+  ],
+  purpose: "Expose unlock vocabulary and authored requirements to React.",
+}
+
+progressionTopologyProjection := @project(network) {
+  source: progressionNetwork,
+  view: progressionTopologyViewNode,
+  format: topology,
+  include: [
+    graphs,
+    bridges,
+    contexts,
+    hooks,
+    anchor,
+    state,
+    meta,
+  ],
+  purpose: "Expose the cross-domain progression network topology to React.",
+}
+
+debugSemanticProjection := @project(network) {
+  source: progressionNetwork,
+  view: debugSemanticView,
+  format: debug,
+  include: [
+    graphs,
+    bridges,
+    contexts,
+    hooks,
+    anchor,
+    state,
+    meta,
+    events,
+  ],
+  purpose: "Expose debug information for inspecting semantic boundaries during development.",
+}
+
+// -----------------------------------------------------------------------------
+// Projection applications
+// -----------------------------------------------------------------------------
+
+characterSheetProjectionView := characterGraph <> characterSheetProjection(characterGraph)
+
+statsProjectionView := statsGraph <> statsProjection(statsGraph)
+
+combatProjectionView := combatGraph <> combatProjection(combatGraph)
+
+skillTreeProjectionView := skillsGraph <> skillTreeProjection(skillsGraph)
+
+unlockRulesProjectionView := unlockRulesGraph <> unlockRulesProjection(unlockRulesGraph)
+
+progressionTopologyProjectionView := progressionNetwork <> progressionTopologyProjection(progressionNetwork)
+
+debugSemanticProjectionView := progressionNetwork <> debugSemanticProjection(progressionNetwork)
+
+// -----------------------------------------------------------------------------
+// Projection graph
+// -----------------------------------------------------------------------------
+
+projectionGraph := @seed(graph) {
+  node: [
+    projectionRoot,
+
+    characterSheetView,
+    statsView,
+    combatView,
+    skillTreeView,
+    unlockRulesView,
+    progressionTopologyViewNode,
+    debugSemanticView,
+
+    characterSheetPanel,
+    statsPanel,
+    combatPanel,
+    skillTreePanel,
+    unlockRulesPanel,
+    networkPanel,
+    debugPanel,
+  ],
+
+  edge: [
+    projectionIncludesCharacterSheetView,
+    projectionIncludesStatsView,
+    projectionIncludesCombatView,
+    projectionIncludesSkillTreeView,
+    projectionIncludesUnlockRulesView,
+    projectionIncludesProgressionTopologyView,
+    projectionIncludesDebugSemanticView,
+
+    characterSheetViewProjectsCharacterGraph,
+    statsViewProjectsStatsGraph,
+    combatViewProjectsCombatGraph,
+    skillTreeViewProjectsSkillsGraph,
+    unlockRulesViewProjectsUnlockRulesGraph,
+    progressionTopologyViewProjectsProgressionNetwork,
+    debugSemanticViewProjectsProgressionNetwork,
+
+    characterSheetViewSupportsCharacterPanel,
+    statsViewSupportsStatsPanel,
+    combatViewSupportsCombatPanel,
+    skillTreeViewSupportsSkillTreePanel,
+    unlockRulesViewSupportsUnlockRulesPanel,
+    progressionTopologyViewSupportsNetworkPanel,
+    debugSemanticViewSupportsDebugPanel,
+  ],
+
+  meta: {
+    purpose: "Define React-facing semantic projection targets and projection ownership.",
+    owner: tat,
+    dataBoundary: "TAT defines what views mean. React decides how to render them.",
+  },
+
+  root: projectionRoot,
+}
+
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
+
+export {
+  projectionRoot,
+
+  characterSheetView,
+  statsView,
+  combatView,
+  skillTreeView,
+  unlockRulesView,
+  progressionTopologyViewNode,
+  debugSemanticView,
+
+  characterSheetPanel,
+  statsPanel,
+  combatPanel,
+  skillTreePanel,
+  unlockRulesPanel,
+  networkPanel,
+  debugPanel,
+
+  characterSheetProjection,
+  statsProjection,
+  combatProjection,
+  skillTreeProjection,
+  unlockRulesProjection,
+  progressionTopologyProjection,
+  debugSemanticProjection,
+
+  characterSheetProjectionView,
+  statsProjectionView,
+  combatProjectionView,
+  skillTreeProjectionView,
+  unlockRulesProjectionView,
+  progressionTopologyProjectionView,
+  debugSemanticProjectionView,
+
+  projectionGraph,
+}
